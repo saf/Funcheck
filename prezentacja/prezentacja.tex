@@ -1,4 +1,4 @@
-\documentclass[handout]{beamer}
+\documentclass{beamer}
 
 \usetheme{Warsaw}
 \usefonttheme[onlylarge]{structurebold}
@@ -12,21 +12,26 @@
 \usepackage{listings}
 \usepackage{graphicx}
 \usepackage{wrapfig}
-\usepackage{multicols}
+\usepackage{enumerate}
 
 \definecolor{ugreen}{rgb}{0, 0.5, 0}
 \definecolor{lgreen}{rgb}{0.85, 1, 0.85}
+\definecolor{lstback}{RGB}{235 240 250}
 
 \setbeamercolor{gr}{fg=white, bg=ugreen}
 \setbeamercolor{lgr}{fg=black, bg=lgreen}
 
-\title{Model-checking programów w Javie}
+\title{JSR 308 i weryfikacja adnotacji Javy}
 
 \author{Sławomir Rudnicki} 
 
 \institute{Niezawodność systemów współbieżnych i obiektowych}
 
 \date{27 października 2010}
+
+\lstset{language=Java, showstringspaces=false, backgroundcolor=\color{lstback}, 
+        emph={@NonNull, @SuppressWarnings, @Deprecated}, 
+        emphstyle=\color{red}}
 
 \begin{document}
 
@@ -39,6 +44,59 @@
 
 \section{Wprowadzenie}
 
+\begin{frame}{Sfera zainteresowań na dziś}
+\begin{itemize}
+\item[$\rightarrow$] weryfikacja własności elementów programu:
+\begin{itemize}
+\item klas, 
+\item metod, 
+\item obiektów, 
+\item pól obiektów...
+\end{itemize}
+\end{itemize}
+\end{frame}
 
+\begin{frame}{Sfera zainteresowań na dziś}
+\begin{itemize}
+\item<1->[$\rightarrow$] własności definiowane przy pomocy \textbf{adnotacji}
+\begin{center}
+\lstinputlisting{code/annot-example.java}
+\end{center}
+\item<2->[$\rightarrow$] weryfikacja będzie odbywać się \textbf{statycznie} -- analiza kodu źródłowego
+\end{itemize}
+\end{frame}
+
+\section{Adnotacje}
+\subsection{Historia}
+\begin{frame}{Adnotacje w Java 5}
+\begin{itemize}
+\item<1-> Adnotacje zostały wprowadzone w Javie 5 na podstawie propozycji
+  JSR 175 z 2002 roku.
+\item<2-> Cel: 
+\begin{itemize}
+\item umożliwienie wprowadzania metadanych do kodu źródłowego
+\end{itemize}
+\item<3-> Postać adnotacji: 
+\begin{itemize}
+\item \color{red} @NonNull 
+\item \color{red} @Deprecated
+\end{itemize}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Adnotowane elementy}
+  \structure{Klasy}  
+  \lstinputlisting{code/annot-class.java}
+  \pause
+  \structure{Metody}
+  \lstinputlisting{code/annot-method.java}
+\end{frame}
+
+  
+
+\subsection{Własne adnotacje}
+\subsection{JSR 308}
+\begin{frame}
+\end{frame}
 
 \end{document}
