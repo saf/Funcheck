@@ -1,0 +1,3 @@
+interface ConstList<@ReadOnly E> { 
+    ... 
+}

@@ -1,0 +1,6 @@
+class Invocation {
+  @Immutable Invocation() { 
+      ... 
+  }
+  ...
+}

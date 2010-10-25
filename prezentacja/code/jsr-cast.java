@@ -1,0 +1,1 @@
+myString = (@NonNull String) myObject;

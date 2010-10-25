@@ -16,6 +16,7 @@
 
 \definecolor{ugreen}{rgb}{0, 0.5, 0}
 \definecolor{lgreen}{rgb}{0.85, 1, 0.85}
+\definecolor{annot}{rgb}{0.5, 0, 0}
 \definecolor{lstback}{RGB}{235 240 250}
 
 \setbeamercolor{gr}{fg=white, bg=ugreen}
@@ -30,8 +31,12 @@
 \date{27 października 2010}
 
 \lstset{language=Java, showstringspaces=false, backgroundcolor=\color{lstback}, 
-        emph={@NonNull, @SuppressWarnings, @Deprecated}, 
-        emphstyle=\color{red}}
+        emph={@NonNull, @SuppressWarnings, @Deprecated, @UTF8, 
+              @Id, @Length, @UserPrincipal, @Target, @Retention, @interface, 
+              @Entity, @GeneratedValue, @Existing, @ReadOnly, @Readonly, @Critical, 
+              @Immutable, @NonEmpty}, 
+        emphstyle={\color{annot}}, 
+        columns=fullflexible}
 
 \begin{document}
 
@@ -80,6 +85,7 @@
 \begin{itemize}
 \item \color{red} @NonNull 
 \item \color{red} @Deprecated
+\item \color{red} @Length(min=6, max=50)
 \end{itemize}
 \end{itemize}
 \end{frame}
@@ -88,15 +94,196 @@
   \structure{Klasy}  
   \lstinputlisting{code/annot-class.java}
   \pause
-  \structure{Metody}
+  \structure{Metody i konstruktory}
   \lstinputlisting{code/annot-method.java}
 \end{frame}
 
-  
+\begin{frame}{Adnotowane elementy}
+  \structure{Parametry procedur}
+  \lstinputlisting{code/annot-param.java}
+  \pause
+  \structure{Pola klas}
+  \lstinputlisting{code/annot-field.java}
+\end{frame}
 
 \subsection{Własne adnotacje}
-\subsection{JSR 308}
-\begin{frame}
+
+\begin{frame}{Własne adnotacje}
+\begin{itemize}
+\item W Java 5.0 zostały wbudowane tylko trzy adnotacje:
+\begin{itemize}
+\item \color{red} @Deprecated
+\item \color{red} @SuppressWarnings
+\item \color{red} @Override
+\end{itemize}
+\pause
+\item Programista może łatwo tworzyć własne adnotacje
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Przykład definicji adnotacji}
+\lstinputlisting{code/custom-annot.java}
+\end{frame}
+
+\begin{frame}{@Retention}
+Określa zasięg adnotacji:
+\begin{description}[RUNTIME]
+\item<1->[SOURCE] -- ignorowane przez kompilator
+\item<2->[CLASS] -- zachowywane w pliku \texttt{.class}, niewidoczne w czasie
+  wykonania
+\item<3->[RUNTIME] -- widoczne w czasie wykonania, mogą być interpretowane
+  przez JVM.
+\end{description}
+\end{frame}
+
+\begin{frame}{@Target}
+Określa, jakie elementy mogą być adnotowane:
+\begin{itemize}[ANNOTATION\_TYPE]
+\item<1-> PACKAGE -- deklaracja pakietu
+\item<2-> TYPE -- klasy, interfejsy i wyliczenia
+\item<3-> CONSTRUCTOR $\quad$
+\item<3-> METHOD $\quad$
+\item<4-> PARAMETER $\quad$
+\item<4-> FIELD $\quad$
+\item<4-> LOCAL\_VARIABLE $\quad$
+\item<5-> ANNOTATION\_TYPE -- meta-adnotacje
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Zastosowania}
+Adnotacje znalazły szerokie zastosowanie, przyczyniając się 
+do rozwoju frameworków platformy J2EE.
+\begin{itemize}
+\item metadane można definiować bezpośrednio w kodzie, 
+  a nie w dodatkowych plikach.
+\end{itemize}
+\pause
+Przewaga nad JML-em: 
+\begin{itemize}
+\item adnotacje mogą być zachowane w plikach \texttt{.class}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Adnotacje w J2EE: Hibernate}
+  Hibernate Mapping:
+  \lstinputlisting[language=XML]{code/hibernate.xml}
+\end{frame}
+
+\begin{frame}{Adnotacje w J2EE: Hibernate}
+  Hibernate Annotations:
+  \lstinputlisting{code/hibernate.java}
+\end{frame}
+
+\section{JSR 308}
+\subsection{Wprowadzenie}
+\begin{frame}{JSR 308}
+Propozycja rozszerzenia składni Javy o możliwość adnotowania
+\emph{wszystkich wystąpień} nazwy typu.
+\pause
+\begin{itemize}
+\item projekt -- rok 2006
+\item w założeniu -- część standardu Java 7.
+\end{itemize}
+\end{frame}
+
+\subsection{Rozszerzenia składni}
+
+\begin{frame}{JSR 308: rozszerzenia składni}
+  Można adnotować:
+  \begin{itemize}
+  \item<1-> każde wystąpienie nazwy typu
+  \item<2-> obiekt będący odbiorcą metody
+  \item<3-> parametry formalne typów generycznych
+  \item<4-> maskę \texttt{?} stanowiącą parametr typu generycznego
+  \item<5-> poszczególne poziomy zagnieżdżenia typów tablicowych (\texttt{[]})
+  \end{itemize}
+\end{frame}
+
+\subsection{Przykłady}
+
+\begin{frame}{Przykłady}
+  \structure{Argumenty typów generycznych}
+  \lstinputlisting{code/jsr-generics.java}
+  \structure{Argumenty metod generycznych}
+  \lstinputlisting{code/jsr-gen-meth.java}
+\end{frame}
+
+\begin{frame}{Przykłady}
+  \structure{Ograniczenia argumentów typów generycznych}
+  \lstinputlisting{code/jsr-gen-bounds.java}
+  \structure{Parametry formalne typów generycznych}
+  \lstinputlisting{code/jsr-gen-formal.java}
+\end{frame}
+
+\begin{frame}{Przykłady}
+  \structure{Opis nadklas}
+  \lstinputlisting{code/jsr-superclass.java}
+  \structure{Wyjątki}
+  \lstinputlisting{code/jsr-exception.java}
+\end{frame}
+
+\begin{frame}{Przykłady}
+  \structure{Odbiorcy dla metod}
+  \lstinputlisting{code/jsr-receiver.java}
+  \structure{Wyniki konstruktorów}
+  \lstinputlisting{code/jsr-construct.java}
+\end{frame}
+
+\begin{frame}{Przykłady}
+  \structure{Tablice}
+  \lstinputlisting{code/jsr-array.java}
+\end{frame}
+
+\begin{frame}{Przykłady}
+  \structure{Rzutowanie}
+  \lstinputlisting{code/jsr-cast.java}
+  \structure{Tworzenie obiektów}
+  \lstinputlisting{code/jsr-creation.java}
+\end{frame}
+
+\subsection{Dalszy rozwój adnotacji}
+
+\begin{frame}{Dalszy rozwój adnotacji}
+  \begin{itemize}
+  \item<1-> adnotacje dla wyrażeń
+% Brak przypadków użycia
+  \item<2-> adnotacje dla instrukcji
+% Własności wykonania: atomowość/współbieżność. Projekt w toku.
+  \item<3-> dziedziczenie adnotacji
+% W tej chwili można dziedziczyć adnotacje klas, jeżeli jest ustawiona
+% meta-adnotacja @Inherited. Twórcy sądzą, że przydatne może być
+% dziedziczenie adnotacji na metodach/polach oraz dziedziczenie z
+% implementowanych interfejsów
+  \end{itemize}
+\end{frame}
+
+\subsection{Dalsze losy}
+
+\begin{frame}{Krytyka}
+  Michael Nygard, \emph{When Should You Jump? JSR 308. That's When.}\only<2->{:}
+  \pause
+  \begin{quote}
+Every language has a complexity budget. Java blew through it with
+generics in Java 5. Now, seriously, take another look at this:
+  \end{quote}
+  \lstinputlisting{code/nygard.java}
+  \begin{quote}
+    Does that even look like Java? 
+  \end{quote}
+\end{frame}
+
+\begin{frame}{Dalsze losy}
+  \begin{itemize}
+  \item<1-> JSR 308 nie wejdzie do standardu Java 7 
+    \begin{itemize}
+    \item odroczony do wersji 8 lub późniejszej
+    \end{itemize}
+  \item<2-> Mimo to projekt jest aktywny:
+    \begin{itemize}
+    \item Powstały narzędzia typu \emph{proof of concept}
+    \item Kompilator OpenJDK Javy 7 rozumie rozszerzoną składnię
+    \end{itemize}
+  \end{itemize}
 \end{frame}
 
 \end{document}

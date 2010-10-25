@@ -1,0 +1,3 @@
+public String asLatin2(@UTF8 String s) {
+    ...
+}
