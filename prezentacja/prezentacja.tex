@@ -2,6 +2,7 @@
 
 \usetheme{Warsaw}
 \usefonttheme[onlylarge]{structurebold}
+\useinnertheme{rectangles}
 \setbeamerfont*{frametitle}{size=\normalsize,series=\bfseries}
 \setbeamertemplate{navigation symbols}{}
 
@@ -13,14 +14,23 @@
 \usepackage{graphicx}
 \usepackage{wrapfig}
 \usepackage{enumerate}
+\usepackage[normalem]{ulem}
 
 \definecolor{ugreen}{rgb}{0, 0.5, 0}
 \definecolor{lgreen}{rgb}{0.85, 1, 0.85}
-\definecolor{annot}{rgb}{0.5, 0, 0}
+\definecolor{annot}{rgb}{0.7, 0, 0}
 \definecolor{lstback}{RGB}{235 240 250}
 
 \setbeamercolor{gr}{fg=white, bg=ugreen}
 \setbeamercolor{lgr}{fg=black, bg=lgreen}
+
+\setcounter{tocdepth}{1}
+\AtBeginSection[]
+{
+  \begin{frame}<beamer>{Outline}
+    \tableofcontents[currentsection, hideothersubsections]
+  \end{frame}
+}
 
 \title{JSR 308 i weryfikacja adnotacji Javy}
 
@@ -31,9 +41,10 @@
 \date{27 października 2010}
 
 \lstset{language=Java, showstringspaces=false, backgroundcolor=\color{lstback}, 
-        emph={@NonNull, @SuppressWarnings, @Deprecated, @UTF8, 
+        emph={@NonNull, @Nullable, @SuppressWarnings, @Deprecated, @UTF8, 
               @Id, @Length, @UserPrincipal, @Target, @Retention, @interface, 
-              @Entity, @GeneratedValue, @Existing, @ReadOnly, @Readonly, @Critical, 
+              @Entity, @GeneratedValue, @Existing, @ReadOnly, 
+              @Readonly, @Critical, @TypeQualifier, @SubtypeOf, @ImplicitFor,
               @Immutable, @NonEmpty}, 
         emphstyle={\color{annot}}, 
         columns=fullflexible}
@@ -44,8 +55,10 @@
   \titlepage
 \end{frame}
 \begin{frame}
-  \tableofcontents
+  \tableofcontents[pausesections]
 \end{frame}
+
+\setcounter{tocdepth}{2}
 
 \section{Wprowadzenie}
 
@@ -165,12 +178,12 @@ Przewaga nad JML-em:
 \end{frame}
 
 \begin{frame}{Adnotacje w J2EE: Hibernate}
-  Hibernate Mapping:
+  \textbf{Hibernate Mapping:}
   \lstinputlisting[language=XML]{code/hibernate.xml}
 \end{frame}
 
 \begin{frame}{Adnotacje w J2EE: Hibernate}
-  Hibernate Annotations:
+  \textbf{Hibernate Annotations:}
   \lstinputlisting{code/hibernate.java}
 \end{frame}
 
@@ -257,7 +270,7 @@ Propozycja rozszerzenia składni Javy o możliwość adnotowania
   \end{itemize}
 \end{frame}
 
-\subsection{Dalsze losy}
+\subsection{Dalsze losy JSR 308}
 
 \begin{frame}{Krytyka}
   Michael Nygard, \emph{When Should You Jump? JSR 308. That's When.}\only<2->{:}
@@ -285,5 +298,122 @@ generics in Java 5. Now, seriously, take another look at this:
     \end{itemize}
   \end{itemize}
 \end{frame}
+
+\section{Weryfikacja adnotacji}
+\subsection{Wprowadzenie}
+
+\begin{frame}{Weryfikacja adnotacji}
+\begin{itemize}
+\item<1-> Adnotacje mogą opisywać własności programu, które powinny
+  zostać przetworzone w czasie kompilacji programu.
+\item<2-> W tym celu możliwe jest definiowanie \emph{procesorów
+  adnotacji} (annotation processors) i włączanie ich w tok
+  kompilacji programu.
+  \begin{itemize}
+  \item W standardowej Javie do tego celu służy narzędzie \texttt{apt}
+  \end{itemize}
+\end{itemize}
+\end{frame}
+
+\subsection{apt}
+
+\begin{frame}{Schemat działania}
+  \includegraphics[scale=0.55]{img/apt.pdf}
+\end{frame}
+
+\begin{frame}{Ograniczenia}
+  \begin{itemize}
+  \item Deklaracje przedstawiane procesorowi adnotacji 
+    nie pozwalają na dostęp do struktury kodu.
+    \begin{itemize}
+    \item Brak dostępu do treści metod i konstruktorów
+    \end{itemize}
+  \item Uniemożliwia to weryfikację adnotacji opisujących zachowanie
+    programu. W tym celu należałoby 
+    \only<1>{stworzyć}
+    \only<2>{\sout{stworzyć}}
+    \only<3>{\textbf{znaleźć}} 
+    narzędzie, które potrafi przejść całe drzewo składni programu.
+  \end{itemize}
+\end{frame}
+    
+\subsection{Checker Framework}
+
+\begin{frame}{Checker Framework}
+  \begin{itemize}
+  \item Narzędzie do tworzenia i weryfikacji systemów typów 
+    opartych o adnotacje zgodne z JSR 308.
+  \item Pozwala na definiowanie kwalifikatorów typów i dowodzenie
+    własności programów w odniesieniu do obiektów tych typów.
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Kwalifikatory typów}
+  \textbf{Definicja}
+  \lstinputlisting{code/qual-example.java}
+  \textbf{Użycie}
+  \lstinputlisting{code/qual-usage.java}
+\end{frame}
+  
+\begin{frame}{Hierarchia kwalifikatorów}
+  \lstinputlisting{code/qual-hierarchy.java}
+  \begin{center}
+    \includegraphics[scale=0.5]{img/nullness.png}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Sprawdzane własności}
+  Checker sprawdza:
+  \begin{itemize}
+  \item<1-> przypisania:
+    \lstinputlisting{code/nonnull-invalid.java}
+  \item<2-> wywołania metod
+  \item<2-> argumenty typów generycznych
+  \item<3-> inne własności zdefiniowane przez checker:
+    \lstinputlisting{code/nonnull-invalid-deref.java}
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Istniejące checkery}
+\begin{itemize}
+\item<1-> Nullness
+\item<2-> wzajemne wykluczanie -- monitory
+\item<3-> niemodyfikowalność obiektów
+\item<4-> \emph{taint}
+\end{itemize}
+\end{frame}
+
+\section{Praca magisterska}
+
+\subsection{Wprowadzenie}
+
+\begin{frame}{Praca magisterska}
+\begin{center}
+  \textbf{Weryfikacja funkcyjności metod Javy}\\
+  w oparciu o system typów z pracy \emph{Functional Java}
+\end{center}
+\end{frame}
+
+\begin{frame}{Motywacja}
+  Dlaczego chcemy funkcyjnych metod?
+  \begin{itemize}
+  \item $\quad$  %TODO
+  \end{itemize}
+\end{frame}
+
+\subsection{Wnioskowanie}
+
+
+
+\subsection{Funcheck}
+
+\begin{frame}{Dalsze losy}
+Rozwój projektu można obserwować w publicznym repozytorium:
+\begin{center}
+\vspace{3mm}
+\structure{www.github.com/saf/Funcheck}
+\end{center}
+\end{frame}
+
 
 \end{document}
