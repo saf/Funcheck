@@ -3,6 +3,7 @@ import checkers.lock.quals.*;
 public class LockTest {
     
     private String password;
+
     @GuardedBy("this.password")
     private int passwordHash;
 

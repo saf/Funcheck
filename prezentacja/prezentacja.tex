@@ -229,7 +229,7 @@ Propozycja rozszerzenia składni Javy o możliwość adnotowania
 \end{frame}
 
 \begin{frame}{Przykłady}
-  \structure{Opis nadklas}
+  \structure{Opis nadklas i interfejsów}
   \lstinputlisting{code/jsr-superclass.java}
   \structure{Wyjątki}
   \lstinputlisting{code/jsr-exception.java}
@@ -254,9 +254,9 @@ Propozycja rozszerzenia składni Javy o możliwość adnotowania
   \lstinputlisting{code/jsr-creation.java}
 \end{frame}
 
-\subsection{Dalszy rozwój adnotacji}
+\subsection{Co dalej?}
 
-\begin{frame}{Dalszy rozwój adnotacji}
+\begin{frame}{Propozycje rozwoju adnotacji}
   \begin{itemize}
   \item<1-> adnotacje dla wyrażeń
 % Brak przypadków użycia
@@ -269,8 +269,6 @@ Propozycja rozszerzenia składni Javy o możliwość adnotowania
 % implementowanych interfejsów
   \end{itemize}
 \end{frame}
-
-\subsection{Dalsze losy JSR 308}
 
 \begin{frame}{Krytyka}
   Michael Nygard, \emph{When Should You Jump? JSR 308. That's When.}\only<2->{:}
@@ -415,11 +413,11 @@ generics in Java 5. Now, seriously, take another look at this:
 \subsection{JaFun}
 
 \lstset{morekeywords={class,func,immutable,lstate,rep,let,in}}
-\begin{frame}{JaFun}{Przykład}
+\begin{frame}{Przykład}
   \lstinputlisting{code/jafun.java}
 \end{frame}
 
-\begin{frame}{JaFun}{Weryfikacja kwalifikatorów}
+\begin{frame}{Weryfikacja kwalifikatorów}
   \structure{Poprawność programu}
   \begin{prooftree}
     \RightLabel{$(prog)$}
@@ -440,7 +438,7 @@ generics in Java 5. Now, seriously, take another look at this:
   \end{prooftree}
 \end{frame}
 
-\begin{frame}{Jafun}{Weryfikacja kwalifikatorów}
+\begin{frame}{Weryfikacja kwalifikatorów}
   \structure{Poprawność wywołania metody w metodzie funkcyjnej}
   \begin{prooftree}
     \AxiomC{$C_1, C_2 \in\overline{C}$}
@@ -493,5 +491,13 @@ Rozwój projektu można obserwować w publicznym repozytorium:
 \end{center}
 \end{frame}
 
+\begin{frame}{Bibliografia}
+  \begin{itemize}
+  \item M. D. Ernst, \emph{Type Annotations Specification (JSR 308)}, 
+  \item \emph{The Checker Framework: Custom pluggable types for Java}
+  \item J. Chrząszcz, A. Schubert, \emph{Functional Java}
+  \item M. Nygard, \emph{When Should You Jump? JSR 308. That's When.} [w:] ``Wide Awake Developers'', 6 maja 2008.
+  \end{itemize}
+\end{frame}
 
 \end{document}
