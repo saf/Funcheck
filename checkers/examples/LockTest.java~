@@ -1,0 +1,20 @@
+public class LockTest {
+    
+    private String password;
+    @GuardedBy("this.password")
+    private String passwordHash;
+
+    @Holding("this.password")
+    private void doChangePassword(String p) {
+	password = p;
+	passwordHash = p.hash();
+    }
+
+    public String getPasswordHash() {
+	return this.passwordHash;
+    }
+    
+    public void changePassword(String p) {
+	doChangePassword(p);
+    }
+}
