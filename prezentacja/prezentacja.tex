@@ -15,6 +15,7 @@
 \usepackage{wrapfig}
 \usepackage{enumerate}
 \usepackage[normalem]{ulem}
+\usepackage{bussproofs}
 
 \definecolor{ugreen}{rgb}{0, 0.5, 0}
 \definecolor{lgreen}{rgb}{0.85, 1, 0.85}
@@ -394,24 +395,99 @@ generics in Java 5. Now, seriously, take another look at this:
 \end{center}
 \end{frame}
 
-\begin{frame}{Motywacja}
-  Dlaczego chcemy funkcyjnych metod?
+\begin{frame}{Funkcyjność}
+  Co to jest metoda \emph{funkcyjna}?
   \begin{itemize}
-  \item $\quad$  %TODO
+  \item<1-> nie modyfikuje stanu,
+  \item<2-> wywołana z tymi samymi argumentami, zawsze da ten sam wynik.
   \end{itemize}
 \end{frame}
 
-\subsection{Wnioskowanie}
+\begin{frame}{Motywacja}
+  Dlaczego chcemy funkcyjnych metod?
+  \begin{itemize}
+  \item<1-> ich wywołanie nie może naruszyć niezmienników,
+  \item<2-> wywołanie jest bezpieczne w środowisku wielowątkowym, 
+  \item<2-> brak wyścigów o dane,
+  \item<3-> bezpieczne w niezaufanym środowisku.
+  \end{itemize}
+\end{frame}
 
+\subsection{JaFun}
 
+\lstset{morekeywords={class,func,immutable,lstate,rep,let,in}}
+\begin{frame}{JaFun}{Przykład}
+  \lstinputlisting{code/jafun.java}
+\end{frame}
+
+\begin{frame}{JaFun}{Weryfikacja kwalifikatorów}
+  \structure{Poprawność programu}
+  \begin{prooftree}
+    \RightLabel{$(prog)$}
+    \AxiomC{$\forall_{C\in\overline{C}} \vdash C : ok$}
+    \UnaryInfC{$\vdash \overline{C} : ok$}
+  \end{prooftree}
+  \structure{Poprawność metody}
+  \begin{prooftree}
+    \AxiomC{$Ex = \text{throws}(\overline{C}, C, M)\quad\quad \forall_{D\in Ex} D\in\overline{C}$}
+    \noLine
+    \UnaryInfC{$Loc = \text{par2loc}(\text{params}(\overline{C},C,M))$}
+    \noLine
+    \UnaryInfC{$m=\text{name}(\overline{C},C,M) \quad\quad \text{mmod}=\text{modifier}(\overline{C},C,M)$}
+    \noLine
+    \UnaryInfC{$\overline{C};C:\text{cmod}, m:\text{mmod}; Ex; Loc
+      \vdash \text{body}(\overline{C},C,M) : \text{mok}$}
+    \UnaryInfC{$\overline{C}; C : \text{cmod} \vdash M : \text{ok}$}
+  \end{prooftree}
+\end{frame}
+
+\begin{frame}{Jafun}{Weryfikacja kwalifikatorów}
+  \structure{Poprawność wywołania metody w metodzie funkcyjnej}
+  \begin{prooftree}
+    \AxiomC{$C_1, C_2 \in\overline{C}$}
+    \AxiomC{$x : \left<C_1, \tau_1, \tau_2\right>\in Loc$}
+    \noLine
+    \BinaryInfC{$\text{modifier}(\overline{C},C_1,m')=\textbf{func}$}
+    \noLine
+    \UnaryInfC{$\overline{C}; C : \text{cmod}, m : \textbf{func}; 
+      Ex, Loc\vdash x.m'(\overline{x}) : C_2$}
+    \UnaryInfC{$\overline{C}; C :\, \text{cmod}, m : \textbf{func}; 
+      Ex; Loc\vdash x.m'(\overline{x}) : \text{mok}$}
+  \end{prooftree}
+\end{frame}
 
 \subsection{Funcheck}
+
+\begin{frame}{Zadania}
+  \begin{itemize}
+  \item<1-> Reguły dowodzenia dla Javy
+    \pause
+    \begin{itemize}
+      \item ...albo jej podzbioru.
+      \item JaFun nie ma np. składania instrukcji ani przypisań
+    \end{itemize}
+  \item<2-> Wprowadzanie własności z JaFun do kodu Javy
+    \begin{itemize}
+    \item Adnotacje! {\color{annot} @Function}, 
+      {\color{annot} @Representation}, {\color{annot} @LocalState}
+    \end{itemize}
+  \item<3-> Implementacja checkera
+  \end{itemize}
+\end{frame}
+
+\begin{frame}{Projekt checkera}
+  \begin{center}
+%    \includegraphics{img/project.pdf}
+  \end{center}
+\end{frame}
 
 \begin{frame}{Dalsze losy}
 Rozwój projektu można obserwować w publicznym repozytorium:
 \begin{center}
 \vspace{3mm}
-\structure{www.github.com/saf/Funcheck}
+\structure{www.github.com/saf/Funcheck}\\
+\vspace{3mm}
+\texttt{git clone git://github.com/saf/Funcheck.git}
 \end{center}
 \end{frame}
 
