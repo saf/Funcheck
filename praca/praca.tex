@@ -1,0 +1,100 @@
+\documentclass{pracamgr}
+
+\usepackage[polish]{babel}
+\usepackage[utf8]{inputenc}
+\usepackage{t1enc}
+
+\author{Sławomir Rudnicki}
+\nralbumu{248277}
+
+\title{Weryfikacja funkcyjności metod Javy}
+\tytulang{Verifying that Java methods are functions}
+\kierunek{Informatyka}
+
+\opiekun{dr. Aleksego Schuberta\\
+  Instytut Informatyki\\
+  }
+\date{Maj 2011}
+\dziedzina{11.3 Informatyka}
+\klasyfikacja{D. Software\\
+  D.2 SOFTWARE ENGINEERING\\
+  D.2.4. Software/Program Verification
+}
+
+\keywords{Java, purity, functions, verification, logic programming}
+
+\newtheorem{defi}{Definicja}[section]
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+  Abstract %TODO
+\end{abstract}
+
+\tableofcontents
+%\listoffigures
+%\listoftables
+
+\chapter*{Wprowadzenie}
+\addcontentsline{toc}{chapter}{Wprowadzenie}
+
+Programowanie funkcyjne jest jednym z~głównych paradygmatów
+programowania używanych we współczesnej informatyce. Jego idea
+oraz~główne zasady zostały sformułowana w~1977~roku przez Johna
+Backusa~\cite{backus} i stanowiły podstawę dla wielu języków
+programowania, takich jak szeroko używane obecnie OCaml, Standard ML
+oraz wprowadzony niedawno język $F\sharp$.
+
+Jednym z głównych założeń programowania funkcyjnego jest oparcie go o
+procedury zachowujące się tak jak funkcje matematyczne. Po pierwsze
+więc, wynik wywołania takiej procedury zależy wyłącznie od wartości
+parametrów, z którymi została wywołana. Po drugie, wykonanie procedury
+skutkuje wyłącznie wyliczeniem wartości funkcji, a poza tym nie wpływa
+na sposób wyliczania innych procedur: procedury funkcyjne nie mają
+\emph{efektów ubocznych}.
+
+Powyższe własności procedur można przenieść na języki imperatywne,
+takie jak Java. Metody klas Javy zachowujące te własności będziemy
+nazywać metodami \emph{czysto funkcyjnymi}, lub krótko
+\emph{funkcyjnymi} (ang. \emph{pure}). Własność czystej
+funkcyjności metod i klas zostanie ściśle zdefiniowana w rozdziale
+\ref{property-definitions} niniejszej pracy.
+
+Pojęciem związanym z funkcyjnością jest \emph{niemutowalność} obiektów
+i klas Javy.  Obiekt $X$ jest niemutowalny, jeżeli żaden inny obiekt
+nie może zaobserwować dwóch różnych stanów obiektu $X$. Oznacza to, że
+stan obiektu może zmieniać się wyłącznie w czasie wykonania jego
+konstruktora. Stan obiektu należy tu rozumieć jednak w sposób szerszy
+niż tylko wartości jego pól. W przypadku niektórych klas, pojęcie
+reprezentacji obiektu -- intuicyjnie rozumianej jako obszar pamięci,
+którego wartość definiuje stan obiektu -- musi zostać rozszerzone, by
+obejmować również stan tych obiektów, do których główny obiekt
+utrzymuje referencje.
+
+Dzięki własnościom niemutowalności obiektów oraz funkcyjności ich
+metod uzyskujemy pożądane cechy obiektów i całych systemów, takie jak
+wyeliminowanie zagrożeń związanych z wielowątkowym wykonaniem programu
+oraz bezpieczeństwo w niezaufanym środowisku.
+
+W ramach niniejszej pracy zaprojektowano i zaimplementowano narzędzie
+\emph{Funcheck}, które pozwala na definiowanie i weryfikację własności
+funkcyjności metod oraz niemodyfikowalności obiektów. Przyjęte w pracy
+podejście do weryfikacji własności programów jest oparte o analizę
+statyczną kodu
+
+\chapter{Podstawowe pojęcia}\label{r:pojecia}
+
+
+
+\appendix
+
+\chapter{Załącznik 1}
+\chapter{Załącznik 2} %TODO
+
+
+\addcontentsline{toc}{chapter}{Bibliografia}
+\bibliography{biblio.bib}{}
+\bibliographystyle{plain}
+
+\end{document}
