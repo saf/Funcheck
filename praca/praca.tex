@@ -37,7 +37,6 @@
 %\listoftables
 
 \chapter*{Wprowadzenie}
-\addcontentsline{toc}{chapter}{Wprowadzenie}
 
 Programowanie funkcyjne jest jednym z~głównych paradygmatów
 programowania używanych we współczesnej informatyce. Jego idea
@@ -59,7 +58,7 @@ takie jak Java. Metody klas Javy zachowujące te własności będziemy
 nazywać metodami \emph{czysto funkcyjnymi}, lub krótko
 \emph{funkcyjnymi} (ang. \emph{pure}). Własność czystej
 funkcyjności metod i klas zostanie ściśle zdefiniowana w rozdziale
-\ref{property-definitions} niniejszej pracy.
+\ref{purity} niniejszej pracy.
 
 Pojęciem związanym z funkcyjnością jest \emph{niemutowalność} obiektów
 i klas Javy.  Obiekt $X$ jest niemutowalny, jeżeli żaden inny obiekt
@@ -75,23 +74,102 @@ utrzymuje referencje.
 Dzięki własnościom niemutowalności obiektów oraz funkcyjności ich
 metod uzyskujemy pożądane cechy obiektów i całych systemów, takie jak
 wyeliminowanie zagrożeń związanych z wielowątkowym wykonaniem programu
-oraz bezpieczeństwo w niezaufanym środowisku.
+oraz bezpieczeństwo w niezaufanym środowisku. Przykładowo, dwie metody
+czysto funkcyjne mogą zostać bezpiecznie wykonane współbieżnie (w~
+przeplocie), ponieważ brak efektów ubocznych zapewnia, że żadna z nich
+nie wpływa na wynik drugiej.
 
-W ramach niniejszej pracy zaprojektowano i zaimplementowano narzędzie
-\emph{Funcheck}, które pozwala na definiowanie i weryfikację własności
-funkcyjności metod oraz niemodyfikowalności obiektów. Przyjęte w pracy
-podejście do weryfikacji własności programów jest oparte o analizę
-statyczną kodu
+\section*{Cel pracy}
 
-\chapter{Podstawowe pojęcia}\label{r:pojecia}
+W ramach niniejszej pracy magisterskiej zaprojektowano i
+zaimplementowano narzędzie \emph{Funcheck}, które pozwala na
+definiowanie i weryfikację własności funkcyjności metod oraz
+niemodyfikowalności obiektów. 
+
+Przyjęte w pracy podejście do weryfikacji własności programów jest
+oparte o analizę statyczną kodu i dowodzenie przy pomocy stworzonego
+na potrzeby weryfikacji własności funkcyjności systemu typów. Ów
+system typów bazuje na systemie typów przedstawionym w pracy
+dr. dr. Jacka Chrząszcza i Aleksego Schuberta \emph{Functional
+  Java}. % \cite{functional} ??
+
+Praca została stworzona w ramach seminarium \emph{Niezawodność systemów 
+współbieżnych i obiektowych} w roku akademickim $2010/11$.
 
 
+\section*{Struktura pracy}
+
+Praca składa się z \ref{conclusion} rozdziałów:
+\begin{description}
+\item[Rozdział \ref{purity}] definiuje własności programów
+  weryfikowane przez narzędzie \emph{Funcheck},
+\item[Rozdział \ref{project}] zawiera omówienie metod i narzędzi
+  zastosowanych w projekcie i implementacji narzędzia \emph{Funcheck}, 
+\item[Rozdział \ref{type-system}] zawiera definicję typów i reguł
+  typowania używanych do weryfikacji funkcyjności metod Javy.
+\item[Rozdział \ref{verification-results}] zawiera przykłady działania
+  stworzonego narzędzia: programy, które są poprawnie weryfikowane
+  przez narzędzie \emph{Funcheck}, jak i te, które ze względu na
+  niepełność opracowanego systemu typów nie mogą zostać poprawnie
+  zweryfikowane.
+\item[Rozdział \ref{conclusion}] stanowi podsumowanie pracy. 
+\end{description}
+
+\chapter{Weryfikowane własności}
+\label{purity}
+
+Celem tego rozdziału jest szczegółowe określenie własności
+funkcyjności i niemutowalności dla elementów języka Java. W tym celu
+najpierw zostaną wprowadzone definicje podstawowych pojęć związanych z
+semantyką Javy, a następnie przy ich użyciu zostaną zdefiniowane 
+omawiane własności. 
+
+\section{Podstawowe pojęcia}
+
+\chapter{Projekt narzędzia \emph{Funcheck}}
+\label{project}
+
+W niniejszym rozdziale zostanie przedstawiony ogólny projekt narzędzia
+\emph{Funcheck}. Zostaną opisane poszczególne fazy przetwarzania
+danych o weryfikowanym systemie oraz narzędzia, które zostały użyte w 
+czasie tworzenia programu. 
+
+\section{Architektura narzędzia}
+
+
+
+\section{Weryfikacja oparta o systemy typów}
+
+Jedno z podejść do zagadnienia weryfikacji własności programów polega
+na opracowaniu odpowiedniego systemu typów charakteryzujących
+syntaktyczne elementy języka. W ten sposób problem sprawdzania
+żądanych własności systemu informatycznego można sprowadzić do
+problemu przypisania typów. To podejście było wykorzystane na przykład
+do zapewniania bezpieczeństwa i żywotności w systemach współbieżnych
+przez Naoki Kobayashiego \cite{tb-concurrent}. Analogicznej metody ten
+sam autor użył również do weryfikacji pewności uwierzytelnienia w
+protokołach kryptograficznych \cite{tb-cryptographic}.
+
+Zostały również opracowane systemy typów dla weryfikacji własności
+omawianych w niniejszej pracy. System typów dla niemutowalności
+obiektów stworzyli C. Haack, E. Poll, J. Schäfer i A. Schubert
+\cite{immutability}. System typów dla weryfikacji funkcyjności metod
+powstaje natomiast na Wydziale MIM UW, przy udziale dr. dr. Jacka
+Chrząszcza i Aleksego Schuberta; niniejsza praca jest w dużej mierze
+oparta o nieopublikowany szkic ich pracy \emph{Functional Java}.
+
+\chapter{System typów dla zapewniania funkcyjności}
+\label{type-system}
+
+\chapter{Przykłady działania programu}
+\label{verification-results}
+
+\chapter{Podsumowanie}
+\label{conclusion}
 
 \appendix
 
-\chapter{Załącznik 1}
-\chapter{Załącznik 2} %TODO
-
+\chapter{Załącznik 1} %TODO out?
 
 \addcontentsline{toc}{chapter}{Bibliografia}
 \bibliography{biblio.bib}{}
