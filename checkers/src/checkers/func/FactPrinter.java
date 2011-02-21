@@ -49,7 +49,7 @@ public class FactPrinter {
      * Collection of functors that were declared discontiguous.
      */
     protected Collection<Functor> discontiguousFunctors;
-
+    
     protected BufferedWriter factFile;
 
     public FactPrinter() throws IOException {
@@ -57,8 +57,6 @@ public class FactPrinter {
         discontiguousFunctors = new HashSet<Functor>();
         addCommand("dynamic", new Functor("pure", 1));
     }
-
-
 
     /**
      * Returns a Prolog representation of an object.
@@ -157,7 +155,7 @@ public class FactPrinter {
         addFact("pure", methodName);
     }
 
-    public void addMethodCall(String caller, String callee) {
-        addFact("calls", caller, callee);
+    public void addMethodCall(String key, String caller, String callee) {
+        addFact("calls", key, caller, callee);
     }
 }

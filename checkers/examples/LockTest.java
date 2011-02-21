@@ -1,4 +1,5 @@
 import checkers.lock.quals.*;
+import checkers.func.quals.*;
 
 public class LockTest {
     
@@ -16,7 +17,8 @@ public class LockTest {
     public int getPasswordHash() {
 	return this.passwordHash;
     }
-    
+
+    @Function
     public void changePassword(String p) {
 	doChangePassword(p);
     }
