@@ -3,6 +3,7 @@ package checkers.func;
 import checkers.basetype.BaseTypeVisitor;
 import checkers.func.quals.Function;
 import checkers.types.AnnotatedTypeMirror.AnnotatedExecutableType;
+import checkers.util.TreeUtils;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.MethodInvocationTree;
@@ -43,12 +44,9 @@ public class FuncVisitor extends BaseTypeVisitor<Void, Void> {
     public Void visitMethod(MethodTree node, Void p) {
         currentMethod = CanonicalName.forMethod(node);
         facts.addMethod(currentMethod, currentClass);
-        AnnotatedExecutableType annotMethod = atypeFactory.getAnnotatedType(node);
-        if (annotMethod.hasAnnotation(Function.class)) {
+        ExecutableElement methodElement = TreeUtils.elementFromDeclaration(node);
+        if (methodElement.getAnnotation(Function.class) != null) {
             facts.addPureDeclaration(currentMethod);
-        }
-        for (AnnotationMirror m : annotMethod.getAnnotations()) {
-            System.err.println("Annot: " + m.toString() + " for " + currentMethod);
         }
         return super.visitMethod(node, p);
     }

@@ -16,7 +16,7 @@
 :- op(700, xfx, ::).
 
 error(Message, Key) :-
-	format('~s@~s~n', [Message, Key]),
+	format('~w@~w~n', [Message, Key]),
 	fail.
 
 % ok
@@ -43,7 +43,7 @@ me(M) :: ok :-
 	forall(calls(Key, M, Callee),
 	  pure(Callee)
 	  ;
-	  (\+ pure(Callee), error('impure_call', Key))
+	  (\+ pure(Callee), error('impure.call', Key))
 	),
 	!.
 me(_) :: nok.
