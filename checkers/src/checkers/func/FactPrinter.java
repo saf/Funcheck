@@ -151,11 +151,16 @@ public class FactPrinter {
         addFact("method", className, methodName);
     }
 
-    public void addPureDeclaration(String methodName) {
-        addFact("pure", methodName);
+    public void addConstructor(String className, String constructorName) {
+        addFact("constructor", className, constructorName);
+    }
+
+    public void addAnnotation(String annotation, String elementName) {
+        addFact(annotation, elementName);
     }
 
     public void addMethodCall(String key, String caller, String callee) {
         addFact("calls", key, caller, callee);
     }
+
 }

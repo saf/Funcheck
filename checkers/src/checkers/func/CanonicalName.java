@@ -6,7 +6,9 @@ import checkers.util.TypesUtils;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import java.util.List;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.VariableElement;
 
 /**
  * Generates canonical names for use in Prolog facts.
@@ -19,10 +21,6 @@ import javax.lang.model.element.ExecutableElement;
  */
 public class CanonicalName {
 
-    protected static String getMethodParameterString(ExecutableElement el) {
-        return ""; /* TODO */
-    }
-
     public static String forClass(ClassTree node) {
         return "c_" + ElementUtils.getQualifiedClassName(InternalUtils.symbol(node)).toString();
     }
@@ -33,8 +31,14 @@ public class CanonicalName {
 
     public static String forMethod(ExecutableElement element) {
         String className = ElementUtils.getQualifiedClassName(element).toString();
-        String methodName = element.getSimpleName().toString();
-        return "m_" + className + "->" + methodName + getMethodParameterString(element);
+        StringBuilder builder = new StringBuilder();
+        builder.append(element.getSimpleName().toString());
+        List<? extends VariableElement> parameters = element.getParameters();
+        builder.append("_" + Integer.toString(parameters.size()));
+        for (VariableElement p : parameters) {
+            builder.append("_" + p.asType().toString());
+        };
+        return "m_" + className + "->" + builder.toString();
     }
 
 }

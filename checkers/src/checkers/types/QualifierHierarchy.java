@@ -74,6 +74,20 @@ public abstract class QualifierHierarchy {
         Collection<AnnotationMirror> rhsAnnos = wrapCollection(rhs);
 
         for (AnnotationMirror lhsAnno : lhsAnnos)
+            if (lhsAnno != null) {
+                System.err.println("LHS: " + lhsAnno.toString());
+            } else {
+                System.err.println("LHS: null");
+            }
+        for (AnnotationMirror rhsAnno : rhsAnnos)
+            if (rhsAnno != null) {
+                System.err.println("RHS: " + rhsAnno.toString());
+            } else {
+                System.err.println("RHS: null");
+            }
+
+
+        for (AnnotationMirror lhsAnno : lhsAnnos)
             for (AnnotationMirror rhsAnno : rhsAnnos)
                 if (isSubtype(rhsAnno, lhsAnno))
                     return true;

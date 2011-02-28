@@ -3,13 +3,16 @@ package checkers.func;
 import checkers.basetype.BaseTypeChecker;
 import checkers.func.quals.Function;
 import checkers.func.quals.Immutable;
+import checkers.func.quals.ReadOnly;
+import checkers.func.quals.ReadWrite;
+import checkers.func.quals.WriteLocal;
 import checkers.quals.TypeQualifiers;
 
 /**
  *
  * @author saf
  */
-@TypeQualifiers({Function.class, Immutable.class})
+@TypeQualifiers({Function.class, Immutable.class, ReadOnly.class, ReadWrite.class, WriteLocal.class})
 public class FuncChecker extends BaseTypeChecker {
 
     protected NodeKey elk;

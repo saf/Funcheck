@@ -11,5 +11,5 @@ import java.lang.annotation.*;
 @Documented
 @Target({ElementType.LOCAL_VARIABLE, ElementType.PARAMETER, ElementType.TYPE})
 @Retention(RetentionPolicy.CLASS)
-@SubtypeOf({})
+@SubtypeOf({Mutable.class})
 public @interface Immutable {}

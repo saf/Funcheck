@@ -1,7 +1,11 @@
 package checkers.func;
 
 import checkers.basetype.BaseTypeVisitor;
+import checkers.func.quals.Anonymous;
 import checkers.func.quals.Function;
+import checkers.func.quals.Immutable;
+import checkers.func.quals.ReadOnly;
+import checkers.func.quals.WriteLocal;
 import checkers.types.AnnotatedTypeMirror.AnnotatedExecutableType;
 import checkers.util.TreeUtils;
 import com.sun.source.tree.ClassTree;
@@ -12,7 +16,9 @@ import com.sun.source.tree.Tree;
 import java.io.IOException;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.TypeElement;
 import javax.swing.tree.TreeNode;
 
 /**
@@ -37,16 +43,33 @@ public class FuncVisitor extends BaseTypeVisitor<Void, Void> {
     public Void visitClass(ClassTree node, Void p) {
         currentClass = CanonicalName.forClass(node);
         facts.addClass(currentClass);
+        TypeElement el = TreeUtils.elementFromDeclaration(node);
+        if (el.getAnnotation(Immutable.class) != null) {
+            facts.addAnnotation("immutable", currentClass);
+        }
         return super.visitClass(node, p);
     }
 
     @Override
     public Void visitMethod(MethodTree node, Void p) {
         currentMethod = CanonicalName.forMethod(node);
-        facts.addMethod(currentMethod, currentClass);
         ExecutableElement methodElement = TreeUtils.elementFromDeclaration(node);
-        if (methodElement.getAnnotation(Function.class) != null) {
-            facts.addPureDeclaration(currentMethod);
+        if (methodElement.getKind() == ElementKind.CONSTRUCTOR) {
+            facts.addConstructor(currentMethod, currentClass);
+            if (methodElement.getAnnotation(WriteLocal.class) != null) {
+                facts.addAnnotation("writelocal", currentMethod);
+            };
+            if (methodElement.getAnnotation(Anonymous.class) != null) {
+                facts.addAnnotation("anonymous", currentMethod);
+            };
+        } else {
+            facts.addMethod(currentMethod, currentClass);
+            if (methodElement.getAnnotation(Function.class) != null) {
+                facts.addAnnotation("pure", currentMethod);
+            };
+            if (methodElement.getAnnotation(ReadOnly.class) != null) {
+                facts.addAnnotation("readonly", currentMethod);
+            }
         }
         return super.visitMethod(node, p);
     }
@@ -57,7 +80,7 @@ public class FuncVisitor extends BaseTypeVisitor<Void, Void> {
         String calledMethodCanonical = CanonicalName.forMethod(calledMethodElement);
 
         if (calledMethodElement.getAnnotation(Function.class) != null) {
-            facts.addPureDeclaration(calledMethodCanonical);
+            facts.addAnnotation("pure", calledMethodCanonical);
         }
         String key = checker.getNodeMapping().add((Tree) node);
         facts.addMethodCall(key, currentMethod, calledMethodCanonical);
