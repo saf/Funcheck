@@ -1,4 +1,4 @@
-package checkers.func.quals;
+package checkers.fun.quals;
 
 import checkers.quals.SubtypeOf;
 import java.lang.annotation.Documented;

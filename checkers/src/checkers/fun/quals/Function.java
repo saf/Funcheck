@@ -1,7 +1,6 @@
-package checkers.func.quals;
+package checkers.fun.quals;
 
 import checkers.quals.SubtypeOf;
-import checkers.quals.TypeQualifier;
 import java.lang.annotation.*;
 
 /**
@@ -13,7 +12,7 @@ import java.lang.annotation.*;
  *
  */
 @Documented
-@Target({ElementType.METHOD, ElementType.TYPE})
+@Target({ElementType.METHOD})
 @Retention(RetentionPolicy.CLASS)
-@SubtypeOf({})
+@SubtypeOf({ReadOnly.class})
 public @interface Function {}

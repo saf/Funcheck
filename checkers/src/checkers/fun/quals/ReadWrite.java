@@ -3,20 +3,22 @@
  * and open the template in the editor.
  */
 
-package checkers.func.quals;
+package checkers.fun.quals;
 
+import checkers.quals.ImplicitFor;
 import checkers.quals.SubtypeOf;
+import com.sun.source.tree.Tree;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Target;
 
 /**
- * A method is ReadOnly iff it does not modify the state of the object
- * it is called in. 
+ * The general type annotation of methods
  *
  * @author saf
  */
 @Documented
 @Target({ElementType.METHOD})
-@SubtypeOf({ReadWrite.class})
-public @interface ReadOnly {}
+@SubtypeOf({})
+@ImplicitFor(trees = {Tree.Kind.METHOD})
+public @interface ReadWrite {}

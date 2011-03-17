@@ -1,4 +1,4 @@
-package checkers.func.quals;
+package checkers.fun.quals;
 
 import checkers.quals.SubtypeOf;
 import java.lang.annotation.*;
@@ -12,5 +12,5 @@ import java.lang.annotation.*;
 @Documented
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.CLASS)
-@SubtypeOf({})
+@SubtypeOf({ImmutableClass.class})
 public @interface PurelyFunctional {}

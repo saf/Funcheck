@@ -8,7 +8,9 @@ import com.sun.source.tree.*;
 import com.sun.source.util.*;
 
 import java.lang.annotation.Annotation;
+import java.lang.annotation.ElementType;
 import java.lang.annotation.Inherited;
+import java.lang.annotation.Target;
 import java.util.*;
 
 import javax.annotation.processing.ProcessingEnvironment;
@@ -894,5 +896,18 @@ public class AnnotationUtils {
 
     public static boolean hasInheritiedMeta(AnnotationMirror anno) {
         return anno.getAnnotationType().asElement().getAnnotation(Inherited.class) != null;
+    }
+
+    public static boolean hasTarget(AnnotationMirror a, ElementType type) {
+        Target t = (Target) a.getAnnotationType().asElement().getAnnotation(Target.class);
+        if (t != null) {
+            ElementType [] targets = t.value();
+            for (ElementType tp : targets) {
+                if (tp.equals(type)) {
+                    return true;
+                }
+            }
+        };
+        return false;
     }
 }

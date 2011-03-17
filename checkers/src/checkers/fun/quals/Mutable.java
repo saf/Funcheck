@@ -3,7 +3,7 @@
  * and open the template in the editor.
  */
 
-package checkers.func.quals;
+package checkers.fun.quals;
 
 import checkers.quals.DefaultQualifierInHierarchy;
 import checkers.quals.ImplicitFor;
@@ -12,12 +12,11 @@ import com.sun.source.tree.Tree.Kind;
 import java.lang.annotation.*;
 
 /**
- *
+ * General type of object references.
  *
  * @author saf
  */
 @Documented
-@Target({ElementType.LOCAL_VARIABLE, ElementType.PARAMETER, ElementType.TYPE, ElementType.FIELD})
 @Retention(RetentionPolicy.CLASS)
 @SubtypeOf({})
 @DefaultQualifierInHierarchy

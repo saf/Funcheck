@@ -1,15 +1,24 @@
-import checkers.func.quals.*;
+import checkers.fun.quals.*;
 
-@Immutable 
+@ImmutableClass
 public class Immut {
 
-    protected String s;
+    static class IntHolder {
+        public Integer i;
 
-    public Immut() { s = ""; }
-    public Immut(String s) { this.s = s; }
+        public IntHolder() {
+            i = 0;
+        }
 
-    public String getS() {
-	return s;
+        void set(int j) { i = j; }
+        Integer get() { return i; };
+    }
+
+    public static void main(String[] args) {
+        @Immutable IntHolder h = new IntHolder();
+        @Mutable IntHolder foo = h;
+        foo.set(3);
+        System.out.println(h.get().toString());
     }
 
 }
