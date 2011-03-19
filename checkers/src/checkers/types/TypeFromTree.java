@@ -13,6 +13,7 @@ import checkers.util.*;
 
 import com.sun.source.tree.*;
 import com.sun.source.util.*;
+import java.lang.annotation.Annotation;
 
 /**
  * A utility class used to abstract common functionality from tree-to-type
@@ -37,9 +38,9 @@ abstract class TypeFromTree extends
         // Annotate the inner most array
         AnnotatedTypeMirror innerType = AnnotatedTypes.innerMostType(type);
         for (AnnotationMirror anno : annotations) {
-            if (isTypeAnnotation(anno))
+            if (isTypeAnnotation(anno)) {
                 innerType.addAnnotation(anno);
-            else
+            } else
                 type.addAnnotation(anno);
         }
     }
@@ -418,7 +419,18 @@ abstract class TypeFromTree extends
                 result.setReturnType(f.toAnnotatedType(f.types.getNoType(TypeKind.VOID)));
             else
                 result.setReturnType(f.fromTypeTree(node.getReturnType()));
-            addAnnotationsToElt(result.getReturnType(), elt.getAnnotationMirrors());
+
+            /* We should not add all annotations to the return type. Method annotations are not applicable
+             * @author saf
+             */
+            List<AnnotationMirror> returnTypeAnnotations = new LinkedList<AnnotationMirror>();
+            for (AnnotationMirror m : elt.getAnnotationMirrors()) {
+                if (!AnnotationUtils.hasTarget(m, ElementType.METHOD))
+                    returnTypeAnnotations.add(m);
+                else
+                    result.addAnnotation(m);
+            }
+            addAnnotationsToElt(result.getReturnType(), returnTypeAnnotations);
 
             // Annotate the receiver.
             List<AnnotationMirror> receiverAnnos =

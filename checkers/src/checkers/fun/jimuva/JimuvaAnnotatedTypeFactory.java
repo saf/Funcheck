@@ -5,6 +5,7 @@ import checkers.fun.quals.Immutable;
 import checkers.fun.quals.ReadOnly;
 import checkers.fun.quals.WriteLocal;
 import checkers.types.AnnotatedTypeMirror;
+import checkers.types.AnnotatedTypeMirror.AnnotatedExecutableType;
 import checkers.types.BasicAnnotatedTypeFactory;
 import checkers.util.AnnotationUtils;
 import checkers.util.ElementUtils;
@@ -14,6 +15,8 @@ import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LiteralTree;
+import com.sun.source.tree.MethodInvocationTree;
+import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import javax.lang.model.element.AnnotationMirror;
@@ -27,14 +30,12 @@ import javax.lang.model.element.TypeElement;
 public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<JimuvaChecker> {
 
     protected final AnnotationUtils annotationFactory;
-
-    protected final AnnotationMirror IMMUTABLE, MUTABLE;
+    protected JimuvaChecker checker;
 
     public JimuvaAnnotatedTypeFactory(JimuvaChecker checker, CompilationUnitTree root) {
         super(checker, root, false);
         annotationFactory = checker.getAnnotationFactory();
-        IMMUTABLE = checker.IMMUTABLE;
-        MUTABLE   = checker.MUTABLE;
+        this.checker = checker;
     }
 
     @Override
@@ -43,35 +44,79 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         super.annotateImplicit(tree, type);
     }
 
+    /**
+     * Annotate the receivers of @ReadOnly methods with @Immutable
+     * in order to permit calls of form
+     *   imo.foo()
+     * where imo is @Immutable and foo is @ReadOnly.
+     *
+     * @param tree the method call AST tree node
+     * @return the annotated type for method called at [tree]
+     */
+    @Override
+    public AnnotatedExecutableType methodFromUse(MethodInvocationTree tree) {
+        AnnotatedExecutableType method = super.methodFromUse(tree);
+        refineMethodType(method);
+        return method;
+    }
+
+    @Override
+    public AnnotatedTypeMirror fromElement(Element elt) {
+        AnnotatedTypeMirror type = super.fromElement(elt);
+        if (elt.getKind().equals(ElementKind.METHOD)) {
+            refineMethodType((AnnotatedExecutableType) type);
+        }
+        return type;
+    }
+
+    @Override
+    public AnnotatedTypeMirror getAnnotatedType(Tree tree) {
+        AnnotatedTypeMirror type = super.getAnnotatedType(tree);
+        if (tree instanceof MethodTree) {
+            refineMethodType((AnnotatedExecutableType) type);
+        }
+        return type;
+    }
+
+    protected void refineMethodType(AnnotatedExecutableType type) {
+        if (type.hasAnnotation(checker.READONLY)) {
+            AnnotatedTypeMirror.AnnotatedDeclaredType receiver = type.getReceiverType();
+            receiver.removeAnnotation(checker.MUTABLE);
+            receiver.addAnnotation(checker.IMMUTABLE);
+        }
+        System.err.println("Refined type " + type.toString() + "\n for " + type.getElement().getSimpleName().toString());
+    }
+
+    @Deprecated
     protected void annotateExpressionWithImmutability(Tree tree, AnnotatedTypeMirror type) {
         if (tree instanceof LiteralTree) {
-            type.addAnnotation(IMMUTABLE);
+            type.addAnnotation(checker.IMMUTABLE);
         } else if (tree instanceof BinaryTree) {
             BinaryTree bt = (BinaryTree) tree;
             AnnotatedTypeMirror left = getAnnotatedType(bt.getLeftOperand());
             AnnotatedTypeMirror right = getAnnotatedType(bt.getRightOperand());
-            if (left.hasAnnotation(IMMUTABLE) && right.hasAnnotation(IMMUTABLE)) {
-                type.addAnnotation(IMMUTABLE);
+            if (left.hasAnnotation(checker.IMMUTABLE) && right.hasAnnotation(checker.IMMUTABLE)) {
+                type.addAnnotation(checker.IMMUTABLE);
             }
         } else if (tree instanceof ConditionalExpressionTree) {
             ConditionalExpressionTree ct = (ConditionalExpressionTree) tree;
             AnnotatedTypeMirror tval = getAnnotatedType(ct.getTrueExpression());
             AnnotatedTypeMirror fval = getAnnotatedType(ct.getTrueExpression());
-            if (tval.hasAnnotation(IMMUTABLE) && fval.hasAnnotation(IMMUTABLE)) {
-                type.addAnnotation(IMMUTABLE);
+            if (tval.hasAnnotation(checker.IMMUTABLE) && fval.hasAnnotation(checker.IMMUTABLE)) {
+                type.addAnnotation(checker.IMMUTABLE);
             }
         } else if (tree instanceof IdentifierTree) {
             IdentifierTree it = (IdentifierTree) tree;
             if (getAnnotatedType(TreeUtils.elementFromUse(it)).getKind().isPrimitive()) {
-                type.removeAnnotation(IMMUTABLE);
-                type.addAnnotation(MUTABLE);
+                type.removeAnnotation(checker.IMMUTABLE);
+                type.addAnnotation(checker.MUTABLE);
             }
         } else if (tree instanceof NewClassTree) {
             /*
              * A new object is always born to be immutable. The type of the variable
              * it is referenced by determines whether it becomes mutable afterwards.
              */
-            type.addAnnotation(IMMUTABLE);
+            type.addAnnotation(checker.IMMUTABLE);
         }
     }
 

@@ -350,7 +350,6 @@ public abstract class BaseTypeChecker extends SourceChecker {
      */
     public boolean isValidUse(AnnotatedDeclaredType declarationType,
             AnnotatedDeclaredType useType) {
-        System.err.println("Checking useType " + useType.toString() + " against " + declarationType.toString());
         return isSubtype(useType.getErased(), declarationType.getErased());
     }
 
