@@ -5,11 +5,15 @@ public class Immut {
 
     static class IntHolder {
         public Integer i;
-        IntHolder hld;
+        public Integer @Rep [] ar;
+        @Rep public IntHolder hld;
 
+        @Anonymous 
         public IntHolder() {
             i = 0;
-            hld = new IntHolder();
+            hld = new @Rep IntHolder();
+            ar = new Integer @Rep [3];
+            hld.doDangerousStuffWith(this);
         }
 
         void set(int j) {
@@ -18,10 +22,20 @@ public class Immut {
 
         @ReadOnly
         Integer get() {
-            i = 0;
-            this.hld.i = 0;
-            return i;
+            // i = 0; /* Obvious error */
+            // ar = new Integer[3];  /* Another obvious error */
+            ar[0] = 3;
+            // hld.set(3); /* Error! */
+            Integer x = hld.get();
+            return x;
         };
+
+        void doDangerousStuffWith(IntHolder arg) {}
+
+        @Rep IntHolder getHolder() {
+            @Rep IntHolder h = hld;
+            return h;
+        }
 
         void copy(@Immutable IntHolder h) {
             set(h.get());
@@ -35,7 +49,7 @@ public class Immut {
     public static void main(String[] args) {
         // @Mutable IntHolder foo = h; /* Error */
         IntHolder g = new IntHolder();
-        @Immutable IntHolder hi = new IntHolder();
+        @Immutable IntHolder hi = new @Immutable IntHolder();
         g.copy(hi);
         g.get();
         hi.get();

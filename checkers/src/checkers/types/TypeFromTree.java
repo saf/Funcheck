@@ -425,7 +425,8 @@ abstract class TypeFromTree extends
              */
             List<AnnotationMirror> returnTypeAnnotations = new LinkedList<AnnotationMirror>();
             for (AnnotationMirror m : elt.getAnnotationMirrors()) {
-                if (!AnnotationUtils.hasTarget(m, ElementType.METHOD))
+                if (!AnnotationUtils.hasTarget(m, ElementType.METHOD)
+                        && !AnnotationUtils.hasTarget(m, ElementType.CONSTRUCTOR))
                     returnTypeAnnotations.add(m);
                 else
                     result.addAnnotation(m);

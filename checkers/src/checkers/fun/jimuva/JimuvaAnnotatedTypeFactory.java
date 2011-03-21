@@ -5,6 +5,7 @@ import checkers.fun.quals.Immutable;
 import checkers.fun.quals.ReadOnly;
 import checkers.fun.quals.WriteLocal;
 import checkers.types.AnnotatedTypeMirror;
+import checkers.types.AnnotatedTypeMirror.AnnotatedArrayType;
 import checkers.types.AnnotatedTypeMirror.AnnotatedExecutableType;
 import checkers.types.BasicAnnotatedTypeFactory;
 import checkers.util.AnnotationUtils;
@@ -13,13 +14,13 @@ import checkers.util.TreeUtils;
 import com.sun.source.tree.BinaryTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ConditionalExpressionTree;
+import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.TypeElement;
@@ -36,12 +37,14 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         super(checker, root, false);
         annotationFactory = checker.getAnnotationFactory();
         this.checker = checker;
+        // this.defaults = new JimuvaQualifierDefaults(this, this.annotations, checker);
     }
 
     @Override
     protected void annotateImplicit(Tree tree, AnnotatedTypeMirror type) {
         //annotateExpressionWithImmutability(tree, type);
         super.annotateImplicit(tree, type);
+        addMutableAnnotation(type);
     }
 
     /**
@@ -57,6 +60,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
     public AnnotatedExecutableType methodFromUse(MethodInvocationTree tree) {
         AnnotatedExecutableType method = super.methodFromUse(tree);
         refineMethodType(method);
+        addMutableAnnotation(method);
         return method;
     }
 
@@ -74,6 +78,17 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         AnnotatedTypeMirror type = super.getAnnotatedType(tree);
         if (tree instanceof MethodTree) {
             refineMethodType((AnnotatedExecutableType) type);
+        } else if (!type.hasAnnotation(checker.IMMUTABLE)) {
+            type.addAnnotation(checker.MUTABLE);
+        }
+        return type;
+    }
+
+    @Override
+    public AnnotatedTypeMirror getAnnotatedType(Element elt) {
+        AnnotatedTypeMirror type = super.getAnnotatedType(elt);
+        if (!type.hasAnnotation(checker.IMMUTABLE)) {
+            type.addAnnotation(checker.MUTABLE);
         }
         return type;
     }
@@ -84,7 +99,6 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             receiver.removeAnnotation(checker.MUTABLE);
             receiver.addAnnotation(checker.IMMUTABLE);
         }
-        System.err.println("Refined type " + type.toString() + "\n for " + type.getElement().getSimpleName().toString());
     }
 
     @Deprecated
@@ -120,9 +134,29 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         }
     }
 
+    protected void addMutableAnnotation(AnnotatedTypeMirror type) {
+        if (!type.hasAnnotation(checker.IMMUTABLE)) {
+            type.addAnnotation(checker.MUTABLE);
+        };
+        
+        if (type instanceof AnnotatedExecutableType) {
+            AnnotatedExecutableType ext = (AnnotatedExecutableType) type;
+            addMutableAnnotation(ext.getReceiverType());
+            addMutableAnnotation(ext.getReturnType());
+            for (AnnotatedTypeMirror t : ext.getParameterTypes()) {
+                addMutableAnnotation(t);
+            }
+        } else if (type instanceof AnnotatedArrayType) {
+            AnnotatedArrayType art = (AnnotatedArrayType) type;
+            addMutableAnnotation(art.getComponentType());
+        }
+    }
+
     @Override
     protected void annotateImplicit(Element el, AnnotatedTypeMirror type) {
         super.annotateImplicit(el, type);
+
+        addMutableAnnotation(type);
 
         /* @Immutable classes may only have @ReadOnly methods and @Anonymous @WriteLocal constructors */
         if (el.getKind() == ElementKind.METHOD) {
@@ -144,4 +178,9 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             }
         }
     }
+
+    public boolean isThis(ExpressionTree node) {
+        return isMostEnclosingThisDeref(node);
+    }
+
 }

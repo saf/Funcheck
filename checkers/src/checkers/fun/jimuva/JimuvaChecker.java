@@ -33,15 +33,17 @@ public class JimuvaChecker extends BaseTypeChecker {
 
     AnnotationUtils annotationFactory;
 
-    public AnnotationMirror IMMUTABLE, MUTABLE, READONLY, REP;
+    public AnnotationMirror IMMUTABLE, MUTABLE, READONLY, REP, ANONYMOUS, WRITELOCAL;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         annotationFactory = AnnotationUtils.getInstance(processingEnv);
-        IMMUTABLE = annotationFactory.fromClass(Immutable.class);
-        MUTABLE   = annotationFactory.fromClass(Mutable.class);
-        READONLY  = annotationFactory.fromClass(ReadOnly.class);
-        REP       = annotationFactory.fromClass(Rep.class);
+        IMMUTABLE  = annotationFactory.fromClass(Immutable.class);
+        MUTABLE    = annotationFactory.fromClass(Mutable.class);
+        READONLY   = annotationFactory.fromClass(ReadOnly.class);
+        REP        = annotationFactory.fromClass(Rep.class);
+        ANONYMOUS  = annotationFactory.fromClass(Anonymous.class);
+        WRITELOCAL = annotationFactory.fromClass(WriteLocal.class);
         super.init(processingEnv);
     }
 
