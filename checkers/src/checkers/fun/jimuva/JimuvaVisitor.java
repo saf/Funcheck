@@ -10,6 +10,7 @@ import checkers.util.ElementUtils;
 import checkers.util.InternalUtils;
 import checkers.util.TreeUtils;
 import com.sun.source.tree.AnnotationTree;
+import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -52,10 +53,13 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         //System.err.println("Receiver type is " + receiver.toString());
         if (receiver != null && receiver.hasAnnotation(checker.IMMUTABLE)) {
             String messageKey = TreeUtils.isSelfAccess(varTree)
-                    ? "readonly.assigns.receiver"
+                    ? "readonly.assigns.receiver.field"
                     : "assigning.field.of.immutable";
             checker.report(Result.failure(messageKey), varTree);
         }
+        AnnotatedTypeMirror methodReceiver = currentMethod.getReceiverType();
+        checkAssignmentRep(node, methodReceiver != null
+                && methodReceiver.hasAnnotation(checker.IMMUTABLE));
 
         if (currentMethod.hasAnnotation(checker.ANONYMOUS)) {
             checkAssignmentAnonymous(node);
@@ -108,11 +112,14 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         AnnotatedExecutableType calledMethod = atypeFactory.methodFromUse(node);
         //System.err.println("Invocation " + node.toString());
         AnnotatedTypeMirror receiver = atypeFactory.getReceiver(node);
+        AnnotatedTypeMirror currentMethodReceiver = currentMethod.getReceiverType();
+        AnnotatedTypeMirror calledMethodReceiver = calledMethod.getReceiverType();
+
 
         /* Method calls cannot alter the inner representation of @Immutable objects */
-        if (currentMethod.getReceiverType().hasAnnotation(checker.IMMUTABLE)
-                && receiver.hasAnnotation(checker.REP)
-                && !calledMethod.getReceiverType().hasAnnotation(checker.IMMUTABLE)) {
+        if (currentMethod != null && currentMethod.hasAnnotation(checker.IMMUTABLE)
+                && receiver != null && receiver.hasAnnotation(checker.REP)
+                && calledMethodReceiver != null && !calledMethodReceiver.hasAnnotation(checker.IMMUTABLE)) {
             checker.report(Result.failure("nonreadonly.call.on.rep"), node);
         }
 
@@ -137,6 +144,46 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             mcp.getReceiverType().addAnnotation(checker.MUTABLE);
         }
         return super.checkMethodInvocability(mcp, node);
+    }
+
+    /**
+     * Check that an assignment does not modify @Rep objects.
+     */
+    protected void checkAssignmentRep(AssignmentTree node, boolean receiverImmutable) {
+        ExpressionTree varTree = node.getVariable();
+        if (varTree instanceof ArrayAccessTree) {
+            ArrayAccessTree t = (ArrayAccessTree) varTree;
+            boolean dig = true;
+            boolean rep = false;
+            while (dig) {
+                ExpressionTree e = t.getExpression();
+                AnnotatedTypeMirror et = atypeFactory.getAnnotatedType(e);
+                System.err.println("ARRAY: " + e.toString() + " : " + et.toString());
+                if (et.hasAnnotation(checker.IMMUTABLE)) {
+                    String errorKey = rep
+                            ? "assignment.to.rep.array.of.immutable"
+                            : "assignment.to.field.of.immutable.array";
+                    checker.report(Result.failure(errorKey, e.toString()), varTree);
+                    dig = false;
+                } else if (!(e instanceof ArrayAccessTree)) {
+                    System.err.println((et.hasAnnotation(checker.REP) ? "yes " : " no")
+                            + (TreeUtils.isSelfAccess(e) ? " yes" : " no")
+                            + (receiverImmutable ? " yes" : " no"));
+                    if (et.hasAnnotation(checker.REP)
+                            && TreeUtils.isSelfAccess(e)
+                            && receiverImmutable) {
+                        String errorKey = rep
+                                ? "assignment.to.rep.array.of.rep.array.receiver"
+                                : "assignment.to.rep.array.of.receiver";
+                        checker.report(Result.failure(errorKey, e.toString()), varTree);
+                    }
+                    dig = false;
+                } else if (et.hasAnnotation(checker.REP)) {
+                    rep = true;
+                    t = (ArrayAccessTree) e;
+                }
+            };
+        }
     }
 
     /**

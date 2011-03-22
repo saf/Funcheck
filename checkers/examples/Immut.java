@@ -1,4 +1,5 @@
 import checkers.fun.quals.*;
+import java.util.Arrays;
 
 @ImmutableClass
 public class Immut {
@@ -25,12 +26,14 @@ public class Immut {
             // i = 0; /* Obvious error */
             // ar = new Integer[3];  /* Another obvious error */
             ar[0] = 3;
+            Arrays.asList(ar);
             // hld.set(3); /* Error! */
             Integer x = hld.get();
             return x;
         };
 
         void doDangerousStuffWith(IntHolder arg) {}
+        void doDangerousStuffWithArray(Integer[] arg) {}
 
         @Rep IntHolder getHolder() {
             @Rep IntHolder h = hld;
