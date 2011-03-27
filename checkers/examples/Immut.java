@@ -11,10 +11,20 @@ public class Immut {
 
         @Anonymous 
         public IntHolder() {
-            i = 0;
+            IntHolder alias;
+            alias = this;
+            alias = new IntHolder();
             hld = new @Rep IntHolder();
+            hld = this;
+            i = get();
+            i = this.get();
+            i = hld.get();
+            i = alias.get();
             ar = new Integer @Rep [3];
+            doDangerousStuffWith(this);
+            doDangerousStuffWith(alias);
             hld.doDangerousStuffWith(this);
+            hld.doDangerousStuffWith(alias);
         }
 
         void set(int j) {
@@ -22,9 +32,10 @@ public class Immut {
         }
 
         @ReadOnly
+        @Anonymous
         Integer get() {
-            // i = 0; /* Obvious error */
-            // ar = new Integer[3];  /* Another obvious error */
+            i = 0; /* Obvious error */
+            ar = new Integer @Rep [3];  /* Another obvious error */
             ar[0] = 3;
             Arrays.asList(ar);
             // hld.set(3); /* Error! */

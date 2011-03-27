@@ -18,6 +18,6 @@ import java.lang.annotation.Target;
  * @author saf
  */
 @Documented
-@Target({ElementType.CONSTRUCTOR})
+@Target({ElementType.CONSTRUCTOR, ElementType.METHOD})
 @SubtypeOf({})
 public @interface Anonymous {}

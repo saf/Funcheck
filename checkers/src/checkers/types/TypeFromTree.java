@@ -421,7 +421,7 @@ abstract class TypeFromTree extends
                 result.setReturnType(f.fromTypeTree(node.getReturnType()));
 
             /* We should not add all annotations to the return type. Method annotations are not applicable
-             * @author saf
+             * @author Slawek Rudnicki
              */
             List<AnnotationMirror> returnTypeAnnotations = new LinkedList<AnnotationMirror>();
             for (AnnotationMirror m : elt.getAnnotationMirrors()) {
@@ -450,8 +450,13 @@ abstract class TypeFromTree extends
                 }
                 enclosing.clearAnnotations();
                 enclosing.addAnnotations(receiverAnnos);
-                if (TreeUtils.isConstructor(node))
-                    enclosing.addAnnotations(elt.getAnnotationMirrors());
+                if (TreeUtils.isConstructor(node)) {
+                    for (AnnotationMirror a : elt.getAnnotationMirrors()) {
+                        if (!AnnotationUtils.hasTarget(a, ElementType.CONSTRUCTOR)) {
+                            enclosing.addAnnotation(a);
+                        }
+                    }
+                }
                 result.setReceiverType(enclosing);
             }
 

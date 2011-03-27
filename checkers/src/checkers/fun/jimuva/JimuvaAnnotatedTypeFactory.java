@@ -76,7 +76,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
     @Override
     public AnnotatedTypeMirror getAnnotatedType(Tree tree) {
         AnnotatedTypeMirror type = super.getAnnotatedType(tree);
-        if (tree instanceof MethodTree) {
+        if (tree.getKind() == Tree.Kind.METHOD) {
             refineMethodType((AnnotatedExecutableType) type);
         } else if (!type.hasAnnotation(checker.IMMUTABLE)) {
             type.addAnnotation(checker.MUTABLE);
@@ -178,9 +178,4 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             }
         }
     }
-
-    public boolean isThis(ExpressionTree node) {
-        return isMostEnclosingThisDeref(node);
-    }
-
 }

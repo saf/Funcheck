@@ -15,8 +15,11 @@ import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.IdentifierTree;
+import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import java.io.IOException;
 import java.util.List;
@@ -24,6 +27,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.tools.Diagnostic.Kind;
 
 /**
  *
@@ -33,20 +37,18 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
     protected JimuvaChecker checker;
 
-    protected AnnotatedExecutableType currentMethod;
-    protected AnnotatedDeclaredType currentClass;
-
     protected JimuvaAnnotatedTypeFactory atypeFactory;
+    protected JimuvaVisitorState state;
 
     public JimuvaVisitor(JimuvaChecker checker, CompilationUnitTree root) throws IOException {
         super(checker, root);
         this.checker = checker;
         atypeFactory = new JimuvaAnnotatedTypeFactory(checker, root);
+        state = new JimuvaVisitorState(atypeFactory);
     }
 
     @Override
     public Void visitAssignment(AssignmentTree node, Void p) {
-        System.err.println(node.toString());
         ExpressionTree varTree = node.getVariable();
 
         AnnotatedTypeMirror receiver = atypeFactory.getReceiver(varTree);
@@ -57,12 +59,23 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     : "assigning.field.of.immutable";
             checker.report(Result.failure(messageKey), varTree);
         }
-        AnnotatedTypeMirror methodReceiver = currentMethod.getReceiverType();
+        AnnotatedTypeMirror methodReceiver = state.getCurrentMethod().getReceiverType();
         checkAssignmentRep(node, methodReceiver != null
                 && methodReceiver.hasAnnotation(checker.IMMUTABLE));
 
-        if (currentMethod.hasAnnotation(checker.ANONYMOUS)) {
+        if (state.isCurrentMethod(checker.ANONYMOUS)) {
             checkAssignmentAnonymous(node);
+        }
+
+        if (mayBeThis(node.getExpression())) {
+            /* #TODO this may err if a method enclosed in another method
+             * hides the enclosing method's local variable. */
+            try {
+                Element varElement = TreeUtils.elementFromUse(node.getVariable());
+                state.addThisAlias(varElement);
+            } catch (IllegalArgumentException e) {
+                /* The node was not an element use. Swallow the exception. */
+            }
         }
 
         return super.visitAssignment(node, p);
@@ -96,39 +109,57 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
     @Override
     public Void visitClass(ClassTree node, Void p) {
-        currentClass = atypeFactory.getAnnotatedType(node);
-        return super.visitClass(node, p);
+        state.enterClass(node);
+        try {
+            return super.visitClass(node, p);
+        } finally {
+            state.leaveClass();
+        }
     }
 
     @Override
     public Void visitMethod(MethodTree node, Void p) {
-        currentMethod = atypeFactory.getAnnotatedType(node);
-        System.err.println("Method " + node.toString() + "\n  has type " + currentMethod.toString());
-        return super.visitMethod(node, p);
+        state.enterMethod(node);
+        try {
+            return super.visitMethod(node, p);
+        } finally {
+            state.leaveMethod();
+        }
     }
 
     @Override
     public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
         AnnotatedExecutableType calledMethod = atypeFactory.methodFromUse(node);
-        //System.err.println("Invocation " + node.toString());
+        // System.err.println("INVOCATION: " + node.toString());
         AnnotatedTypeMirror receiver = atypeFactory.getReceiver(node);
-        AnnotatedTypeMirror currentMethodReceiver = currentMethod.getReceiverType();
+        AnnotatedTypeMirror currentMethodReceiver = state.getCurrentMethod().getReceiverType();
         AnnotatedTypeMirror calledMethodReceiver = calledMethod.getReceiverType();
 
 
         /* Method calls cannot alter the inner representation of @Immutable objects */
-        if (currentMethod != null && currentMethod.hasAnnotation(checker.IMMUTABLE)
+        if (state.isCurrentMethod(checker.IMMUTABLE)
                 && receiver != null && receiver.hasAnnotation(checker.REP)
                 && calledMethodReceiver != null && !calledMethodReceiver.hasAnnotation(checker.IMMUTABLE)) {
             checker.report(Result.failure("nonreadonly.call.on.rep"), node);
         }
 
-        if (currentMethod.hasAnnotation(checker.ANONYMOUS)) {
+        if (state.isCurrentMethod(checker.ANONYMOUS)) {
             checkCallAnonymous(node);
         }
 
         return super.visitMethodInvocation(node, p);
     }
+
+    @Override
+    public Void visitReturn(ReturnTree node, Void p) {
+        if (state.isCurrentMethod(checker.ANONYMOUS)
+                && mayBeThis(node.getExpression())) {
+            checker.report(Result.failure("anonymous.returns.this"), node);
+        }
+        return super.visitReturn(node, p);
+    }
+
+
 
     @Override
     protected boolean checkMethodInvocability(AnnotatedExecutableType method, MethodInvocationTree node) {
@@ -166,9 +197,9 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     checker.report(Result.failure(errorKey, e.toString()), varTree);
                     dig = false;
                 } else if (!(e instanceof ArrayAccessTree)) {
-                    System.err.println((et.hasAnnotation(checker.REP) ? "yes " : " no")
-                            + (TreeUtils.isSelfAccess(e) ? " yes" : " no")
-                            + (receiverImmutable ? " yes" : " no"));
+//                    System.err.println((et.hasAnnotation(checker.REP) ? "yes " : " no")
+//                            + (TreeUtils.isSelfAccess(e) ? " yes" : " no")
+//                            + (receiverImmutable ? " yes" : " no"));
                     if (et.hasAnnotation(checker.REP)
                             && TreeUtils.isSelfAccess(e)
                             && receiverImmutable) {
@@ -191,9 +222,20 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
      * @param node
      */
     protected void checkAssignmentAnonymous(AssignmentTree node) {
-        if (!TreeUtils.isSelfAccess(node.getVariable())
-                && atypeFactory.isThis(node.getExpression())) {
-            checker.report(Result.failure("anonymous.assigns.this.to.foreign.field"), node);
+        ExpressionTree ex = node.getExpression();
+        ExpressionTree var = node.getVariable();
+        if (mayBeThis(ex)) {
+            try {
+                Element varElement = TreeUtils.elementFromUse(var);
+                if (varElement.getKind() == ElementKind.FIELD) {
+                    checker.report(Result.failure("anonymous.assigns.this.to.field"), var);
+                }
+            } catch (IllegalArgumentException e) {
+                /* Tree is not an element use */
+                if (var.getKind() == Tree.Kind.ARRAY_ACCESS) {
+                    checker.report(Result.failure("anonymous.assigns.this.to.array.field"), var);
+                }
+            }
         }
     }
 
@@ -202,19 +244,29 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
      * @param node
      */
     protected void checkCallAnonymous(MethodInvocationTree node) {
-        if (!TreeUtils.isSelfAccess(node)) {
-            for (ExpressionTree arg : node.getArguments()) {
-                if (atypeFactory.isThis(arg)) {
-                    checker.report(Result.failure("anonymous.pass.this.to.foreign.method"), arg);
-                } else {
-                    System.err.println(arg.toString() + " is not this in call " + node.toString());
-                }
+        /* Check that [this] is not passed as an argument */
+        for (ExpressionTree arg : node.getArguments()) {
+            String exThis = checkNotThis(arg);
+            if (exThis != null) {
+                /* #TODO more meaningful error message */
+                checker.report(Result.failure("argument.may.be.this", exThis), arg);
             }
-        } else {
-            AnnotatedExecutableType method = atypeFactory.methodFromUse(node);
-            if (!method.hasAnnotation(checker.ANONYMOUS)
+        }
+
+        /* Check that non-@Anonymous methods are not called on [this] */
+        AnnotatedExecutableType method = atypeFactory.methodFromUse(node);
+        if (!method.hasAnnotation(checker.ANONYMOUS)
                     && !isBaseConstructorCall(node)) {
+            if (TreeUtils.isSelfAccess(node)) {
                 checker.report(Result.failure("anonymous.calls.non.anonymous"), node);
+            } else {
+                ExpressionTree select = node.getMethodSelect();
+                if (select.getKind() == Tree.Kind.MEMBER_SELECT) {
+                    MemberSelectTree selTree = (MemberSelectTree) select;
+                    if (mayBeThis(selTree)) {
+                        checker.report(Result.failure("anonymous.calls.non.anonymous.on.alias"), node);
+                    }
+                }
             }
         }
     }
@@ -226,12 +278,51 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
     protected boolean isBaseConstructorCall(MethodInvocationTree node) {
         AnnotatedExecutableType method = atypeFactory.methodFromUse(node);
         ExecutableElement methodElement = method.getElement();
-        System.err.println("Base? " + methodElement.getEnclosingElement().getSimpleName().toString()
-                + " " + methodElement.getSimpleName());
+        //System.err.println("Base? " + methodElement.getEnclosingElement().getSimpleName().toString()
+        //        + " " + methodElement.getSimpleName());
         if (methodElement.getEnclosingElement().getSimpleName().contentEquals("Object")
                 && methodElement.getSimpleName().contentEquals("<init>")) {
             return true;
         }
         return false;
+    }
+
+    /**
+     * Return an error message key if the expression may evaluate to a reference to [this].
+     * @param node the [ExpressionTree] to be checked.
+     */
+    protected String checkNotThis(ExpressionTree node) {
+        if (node.getKind() == Tree.Kind.IDENTIFIER) {
+            IdentifierTree tree = (IdentifierTree) node;
+            Element sym = InternalUtils.symbol(tree);
+            if (state.isThisAlias(sym)) {
+                /* #TODO Info on where the alias is assigned */
+                return "local.may.be.alias.to.this";
+            } else if (tree.getName().contentEquals("this")) {
+                return "this.identifier";
+            }
+        } else if (node.getKind() == Tree.Kind.METHOD_INVOCATION) {
+            MethodInvocationTree tree = (MethodInvocationTree) node;
+            AnnotatedExecutableType method = atypeFactory.methodFromUse(tree);
+            if (!method.hasAnnotation(checker.ANONYMOUS)) {
+                if (TreeUtils.isSelfAccess(node)) {
+                    return "call.to.non.anonymous.method.on.this";
+                } else {
+                    ExpressionTree select = tree.getMethodSelect();
+                    if (select.getKind() == Tree.Kind.MEMBER_SELECT) {
+                        MemberSelectTree selTree = (MemberSelectTree) select;
+                        String selError = checkNotThis(selTree.getExpression());
+                        if (selError != null) {
+                            checker.report(Result.failure("call.to.non.anonymous.on.this.alias"), node);
+                        }
+                    }
+                }
+            }
+        } 
+        return null;
+    }
+
+    protected Boolean mayBeThis(ExpressionTree node) {
+        return checkNotThis(node) != null;
     }
 }
