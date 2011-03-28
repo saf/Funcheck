@@ -7,14 +7,18 @@ package checkers.fun.jimuva;
 
 import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeMirror.*;
+import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.Tree;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.Stack;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Name;
 
 /**
@@ -40,13 +44,20 @@ public class JimuvaVisitorState {
      *   * update after assignment of non-this.
      *   * split and conservatively merge on conditionals.
      */
-    protected Set<Element> thisReferences;
+    protected Map<Element, AssignmentTree> thisReferences;
 
-    public JimuvaVisitorState(JimuvaAnnotatedTypeFactory factory) {
-        thisReferences = new HashSet<Element>();
-        this.atypeFactory = factory;
+    /* Map of implicit annotations that the Factory put on methods */
+    protected Map<ExecutableElement, AnnotationMirror> implicitAnnotations;
+
+    public JimuvaVisitorState() {
+        thisReferences = new HashMap<Element, AssignmentTree>();
+        implicitAnnotations = new HashMap<ExecutableElement, AnnotationMirror>();
         enclosingClassStack = new Stack<AnnotatedDeclaredType>();
         enclosingMethodStack = new Stack<AnnotatedExecutableType>();
+    }
+
+    public void setFactory(JimuvaAnnotatedTypeFactory factory) {
+        this.atypeFactory = factory;
     }
 
     public void enterClass(ClassTree tree) {
@@ -95,20 +106,24 @@ public class JimuvaVisitorState {
         return currentMethod.hasAnnotation(ann);
     }
 
-    protected boolean isThisAlias(Element el) {
-        return thisReferences.contains(el);
+    public boolean isThisAlias(Element el) {
+        return thisReferences.containsKey(el);
     }
 
-    protected void addThisAlias(Element el) {
-        thisReferences.add(el);
+    public void addThisAlias(Element el, AssignmentTree tr) {
+        thisReferences.put(el, tr);
     }
 
-    protected void resetMethod() {
-        thisReferences.clear();
+    public void addImplicitAnnotation(ExecutableElement el, AnnotationMirror an) {
+        implicitAnnotations.put(el, an);
     }
 
-    protected void resetClass() {}
+    public boolean isImplicitlyAnnotated(ExecutableElement el) {
+        return implicitAnnotations.containsKey(el);
+    }
 
-
+    public AnnotationMirror getImplicitAnnotation(ExecutableElement el) {
+        return implicitAnnotations.get(el);
+    }
 
 }

@@ -21,12 +21,15 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
+import com.sun.source.tree.VariableTree;
 import java.io.IOException;
 import java.util.List;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
+import javax.lang.model.element.VariableElement;
 import javax.tools.Diagnostic.Kind;
 
 /**
@@ -40,11 +43,11 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
     protected JimuvaAnnotatedTypeFactory atypeFactory;
     protected JimuvaVisitorState state;
 
-    public JimuvaVisitor(JimuvaChecker checker, CompilationUnitTree root) throws IOException {
+    public JimuvaVisitor(JimuvaChecker checker, CompilationUnitTree root, JimuvaVisitorState state) throws IOException {
         super(checker, root);
         this.checker = checker;
-        atypeFactory = new JimuvaAnnotatedTypeFactory(checker, root);
-        state = new JimuvaVisitorState(atypeFactory);
+        atypeFactory = new JimuvaAnnotatedTypeFactory(checker, root, state);
+        this.state = state;
     }
 
     @Override
@@ -72,13 +75,26 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
              * hides the enclosing method's local variable. */
             try {
                 Element varElement = TreeUtils.elementFromUse(node.getVariable());
-                state.addThisAlias(varElement);
+                state.addThisAlias(varElement, node);
             } catch (IllegalArgumentException e) {
                 /* The node was not an element use. Swallow the exception. */
             }
         }
 
         return super.visitAssignment(node, p);
+    }
+
+    @Override
+    public Void visitVariable(VariableTree node, Void p) {
+        /* Check that no @Rep field is public */
+        VariableElement el = TreeUtils.elementFromDeclaration(node);
+        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(el);
+        if (el.getKind().isField()
+                && el.getModifiers().contains(Modifier.PUBLIC)
+                && type.hasAnnotation(checker.REP)) {
+            checker.report(Result.failure("public.rep.field"), node);
+        }
+        return super.visitVariable(node, p);
     }
 
     @Override
@@ -135,7 +151,6 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         AnnotatedTypeMirror currentMethodReceiver = state.getCurrentMethod().getReceiverType();
         AnnotatedTypeMirror calledMethodReceiver = calledMethod.getReceiverType();
 
-
         /* Method calls cannot alter the inner representation of @Immutable objects */
         if (state.isCurrentMethod(checker.IMMUTABLE)
                 && receiver != null && receiver.hasAnnotation(checker.REP)
@@ -158,8 +173,6 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         }
         return super.visitReturn(node, p);
     }
-
-
 
     @Override
     protected boolean checkMethodInvocability(AnnotatedExecutableType method, MethodInvocationTree node) {
@@ -213,7 +226,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     rep = true;
                     t = (ArrayAccessTree) e;
                 }
-            };
+            }
         }
     }
 
