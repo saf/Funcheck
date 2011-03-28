@@ -65,13 +65,6 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
     }
 
     protected void refineMethodType(AnnotatedExecutableType type) {
-        if (type.hasAnnotation(checker.READONLY)) {
-            AnnotatedTypeMirror.AnnotatedDeclaredType receiver = type.getReceiverType();
-            if (receiver != null) {
-                receiver.removeAnnotation(checker.MUTABLE);
-                receiver.addAnnotation(checker.IMMUTABLE);
-            }
-        }
         /* Add implicit annotations to methods of Immutable classes */
         ExecutableElement el = type.getElement();
         TypeElement enclosingClass = ElementUtils.enclosingClass(el);
@@ -81,8 +74,19 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             AnnotationMirror implicit = el.getKind() == ElementKind.CONSTRUCTOR
                     ? checker.ANONYMOUS
                     : checker.READONLY;
-            state.addImplicitAnnotation(el, implicit);
-            type.addAnnotation(implicit);
+            if (!type.hasAnnotation(implicit)) {
+                type.addAnnotation(implicit);
+                state.addImplicitAnnotation(el, implicit);
+            }
+        }
+
+        /* Add the @Immutable annotation to receivers of @ReadOnly methods */
+        if (type.hasAnnotation(checker.READONLY)) {
+            AnnotatedTypeMirror.AnnotatedDeclaredType receiver = type.getReceiverType();
+            if (receiver != null) {
+                receiver.removeAnnotation(checker.MUTABLE);
+                receiver.addAnnotation(checker.IMMUTABLE);
+            }
         }
     }
 
