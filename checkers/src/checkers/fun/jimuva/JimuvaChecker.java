@@ -18,6 +18,7 @@ import com.sun.source.tree.CompilationUnitTree;
 import java.io.IOException;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
+import javax.tools.Diagnostic.Kind;
 
 /**
  *
@@ -71,5 +72,23 @@ public class JimuvaChecker extends BaseTypeChecker {
 
     public AnnotationUtils getAnnotationFactory() {
         return annotationFactory;
+    }
+
+    /**
+     * Issue a note to the error stream.
+     *
+     * @param messageKey
+     * @param args
+     */
+    public void note(Object source, String messageKey, Object... args) {
+        String msg = messageKey;
+        if (messages.containsKey(messageKey)) {
+            msg = messages.getProperty(messageKey);
+        }
+        if (source != null) {
+            message(Kind.OTHER, source, String.format(msg, args));
+        } else {
+            message(Kind.NOTE, null, String.format(msg, args));
+        }
     }
 }

@@ -10,16 +10,12 @@ import checkers.types.AnnotatedTypeMirror.*;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.Tree;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Map;
-import java.util.Set;
 import java.util.Stack;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Name;
 
 /**
  *
@@ -82,12 +78,18 @@ public class JimuvaVisitorState {
     public Boolean isCurrentClass(AnnotationMirror ann) {
         return currentClass.hasAnnotation(ann);
     }
+   
+    public String getCurrentClassName() {
+        return currentClass.getElement().getSimpleName().toString();
+    }
 
     public void enterMethod(MethodTree tree) {
         if (currentMethod != null) {
             enclosingMethodStack.push(currentMethod);
         }
         currentMethod = atypeFactory.getAnnotatedType(tree);
+//        System.err.println("ENTERING METHOD: " + currentMethod.getElement().getSimpleName().toString()
+//                + " ---> " + currentMethod.toString());
     }
 
     public void leaveMethod() {
@@ -106,12 +108,20 @@ public class JimuvaVisitorState {
         return currentMethod.hasAnnotation(ann);
     }
 
+    public String getCurrentMethodName() {
+        return currentMethod.getElement().getSimpleName().toString();
+    }
+
     public boolean isThisAlias(Element el) {
         return thisReferences.containsKey(el);
     }
 
     public void addThisAlias(Element el, AssignmentTree tr) {
         thisReferences.put(el, tr);
+    }
+
+    public AssignmentTree getThisAssignment(Element el) {
+        return thisReferences.get(el);
     }
 
     public void addImplicitAnnotation(ExecutableElement el, AnnotationMirror an) {
@@ -122,8 +132,11 @@ public class JimuvaVisitorState {
         return implicitAnnotations.containsKey(el);
     }
 
+    public boolean inImplicitlyAnnotatedMethod() {
+        return isImplicitlyAnnotated(currentMethod.getElement());
+    }
+
     public AnnotationMirror getImplicitAnnotation(ExecutableElement el) {
         return implicitAnnotations.get(el);
     }
-
 }

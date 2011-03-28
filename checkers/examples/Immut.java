@@ -4,6 +4,7 @@ import java.util.Arrays;
 @ImmutableClass
 public class Immut {
 
+    @ImmutableClass
     static class IntHolder {
         public Integer i;
         public Integer @Rep [] ar;
@@ -32,7 +33,6 @@ public class Immut {
         }
 
         @ReadOnly
-        @Anonymous
         Integer get() {
             i = 0; /* Obvious error */
             ar = new Integer @Rep [3];  /* Another obvious error */
