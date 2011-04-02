@@ -1,7 +1,9 @@
 package checkers.fun.jimuva;
 
 import checkers.basetype.BaseTypeVisitor;
+import checkers.fun.quals.Anonymous;
 import checkers.fun.quals.Function;
+import checkers.fun.quals.ImmutableClass;
 import checkers.source.Result;
 import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeMirror.AnnotatedDeclaredType;
@@ -11,6 +13,7 @@ import checkers.util.InternalUtils;
 import checkers.util.TreeUtils;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ArrayAccessTree;
+import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
@@ -19,18 +22,26 @@ import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewArrayTree;
+import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import com.sun.tools.javac.util.Pair;
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.List;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
+import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.DeclaredType;
+import javax.lang.model.type.NoType;
+import javax.lang.model.type.TypeKind;
+import javax.lang.model.type.TypeMirror;
 import javax.tools.Diagnostic.Kind;
 
 /**
@@ -183,6 +194,100 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
     }
 
     @Override
+    public Void visitNewArray(NewArrayTree node, Void p) {
+        checkNewReferenceType(node.getType());
+        checkNewReferenceFromDefaultConstructor(node.getType());
+        return super.visitNewArray(node, p);
+    }
+
+    /**
+     * Verify that no immutable reference is created using a non-@Anonymous
+     * constructor while creating a new array
+     * 
+     * @param tree The array type specification tree.
+     */
+    protected void checkNewReferenceFromDefaultConstructor(Tree tree) {
+        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
+        if (type.getKind() == TypeKind.DECLARED) {
+            Element element = ((AnnotatedDeclaredType) type).getUnderlyingType().asElement();
+            assert element.getKind() == ElementKind.CLASS : "Array initializer not a class";
+            TypeElement typeElement = (TypeElement) element;
+            if (type.hasAnnotation(checker.IMMUTABLE) && !isDefaultConstructorAnonymous(typeElement)) {
+                checker.report(Result.warning("immutable.untrusted.constructor"), tree);
+            }
+        } else if (type.getKind() == TypeKind.ARRAY) {
+            ArrayTypeTree aTree = (ArrayTypeTree) tree;
+            checkNewReferenceFromDefaultConstructor(aTree.getType());
+        }
+    }
+
+    protected Boolean isDefaultConstructorAnonymous(TypeElement typeElement) {
+        for (Element el : typeElement.getEnclosedElements()) {
+            if (el.getKind() == ElementKind.CONSTRUCTOR) {
+                ExecutableElement constructor = (ExecutableElement) el;
+                if (constructor.getParameters().isEmpty()) {
+                    return constructor.getAnnotation(Anonymous.class) != null;
+                }
+            }
+        }
+        TypeMirror superclass = typeElement.getSuperclass();
+        if (superclass.getKind() == TypeKind.NONE) {
+            /* The constructor is Object.<init>() */
+            return false;
+        } else if (superclass.getKind() == TypeKind.DECLARED) {
+            Element superclassElement = ((DeclaredType) superclass).asElement();
+            if (superclassElement.getKind() == ElementKind.CLASS) {
+                /* Proceed with the superclass */
+                return isDefaultConstructorAnonymous((TypeElement) superclassElement);
+            } else {
+                throw new IllegalStateException("Superclass is not a class");
+            }
+        } else {
+            throw new IllegalStateException("Superclass is not a DeclaredType or NoType");
+        }
+    }
+
+    @Override
+    public Void visitNewClass(NewClassTree node, Void p) {
+        if (state.isCurrentMethod(checker.ANONYMOUS)) {
+            /* Do not pass this to foreign constructors. */
+            checkArgumentsAnonymous(node.getArguments());
+        }
+        checkNewReferenceType(node.getIdentifier());
+        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node.getIdentifier());
+        AnnotatedExecutableType constructor = atypeFactory.constructorFromUse(node);
+        if (type.hasAnnotation(checker.IMMUTABLE) 
+                && constructor.getAnnotation(Anonymous.class) == null) {
+            checker.report(Result.warning("immutable.untrusted.constructor"), node);
+        }
+        return super.visitNewClass(node, p);
+    }
+
+    /**
+     * Check that the reference type is correct, i.e. that there are no
+     * mutable references to objects of an ImmutableClass created.
+     *
+     * @param tree The Tree representing the declared type of the new object,
+     */
+    protected void checkNewReferenceType(Tree tree) {
+        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
+        if (type.getKind() == TypeKind.DECLARED) {
+            AnnotatedDeclaredType declaredType = (AnnotatedDeclaredType) type;
+            Element typeElement = declaredType.getUnderlyingType().asElement();
+            if (typeElement.getKind() == ElementKind.CLASS) {
+                if (typeElement.getAnnotation(ImmutableClass.class) != null
+                        && !type.hasAnnotation(checker.IMMUTABLE)) {
+                    /* Creating a mutable reference to an immutable object */
+                    checker.report(Result.failure("mutable.reference.to.immutable.class"), tree);
+                }
+            }
+        } else if (type.getKind() == TypeKind.ARRAY) {
+            ArrayTypeTree aTree = (ArrayTypeTree) tree;
+            checkNewReferenceType(aTree.getType());
+        }
+    }
+
+    @Override
     protected boolean checkMethodInvocability(AnnotatedExecutableType method, MethodInvocationTree node) {
         AnnotatedExecutableType mcp = (AnnotatedExecutableType) annoTypes.deepCopy(method);
         AnnotatedTypeMirror methodReceiver = mcp.getReceiverType().getErased();
@@ -270,14 +375,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
      * @param node
      */
     protected void checkCallAnonymous(MethodInvocationTree node) {
-        /* Check that [this] is not passed as an argument */
-        for (ExpressionTree arg : node.getArguments()) {
-            ThisReferenceSource exThisSource = checkNotThis(arg);
-            if (exThisSource != null) {
-                checker.report(Result.failure("argument.may.be.this", arg.toString()), arg);
-                exThisSource.print(checker);
-            }
-        }
+        checkArgumentsAnonymous(node.getArguments());
 
         /* Check that non-@Anonymous methods are not called on [this] */
         AnnotatedExecutableType method = atypeFactory.methodFromUse(node);
@@ -303,6 +401,22 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                         }
                     }
                 }
+            }
+        }
+    }
+
+    /**
+     * Validate arguments of a method/constructor call within an Anonymous
+     * method by checking that they don't evaluate to a reference to this.
+     *
+     * @param args The list of arguments to be checked.
+     */
+    protected void checkArgumentsAnonymous(List<? extends ExpressionTree> args) {
+        for (ExpressionTree arg : args) {
+            ThisReferenceSource exThisSource = checkNotThis(arg);
+            if (exThisSource != null) {
+                checker.report(Result.failure("argument.may.be.this", arg.toString()), arg);
+                exThisSource.print(checker);
             }
         }
     }
