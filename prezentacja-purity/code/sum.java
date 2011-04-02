@@ -1,5 +1,5 @@
 @Pure
-public Integer getSum(List<Integer> l) {
+public Integer getSum(List<Integer> list) {
     Integer s = 0;
     Iterator<Integer> it = list.iterator();
     while (it.hasNext()) {

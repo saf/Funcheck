@@ -1,4 +1,4 @@
-\documentclass{beamer}
+\documentclass[handout]{beamer}
 
 \usetheme{Warsaw}
 \usefonttheme[onlylarge]{structurebold}
@@ -39,7 +39,7 @@
 
 \institute{Niezawodność systemów współbieżnych i obiektowych}
 
-\date{27 października 2010}
+\date{16 marca 2011}
 
 \lstset{language=Java, showstringspaces=false, backgroundcolor=\color{lstback}, 
         emph={@Pure, @Function}, 
@@ -330,7 +330,7 @@
           \path[->] [draw=red] (c) edge node {$f$} (d);
           \node [draw=blue, circle] (e) [below of=c, node distance=0.7in] {$n_5$};
           \node [draw=blue, circle] (f) [below of=d, node distance=0.7in] {$n_6$};
-          \path[->] [dotted, bend right] (a) edge (c);
+          \path[->] [dotted, bend right] (c) edge (e);
           \path[->] [dotted, bend right] (a) edge (e);
           \path[->] [dotted] (d) edge (f);
           \only<2->{
@@ -395,7 +395,7 @@
       Metoda jest czysto funkcyjna wtw:
       $$A \cap B = \emptyset$$
       oraz 
-      $$\forall n \in A \exists f \quad \left<n,f\right>\in W$$
+      $$\forall n \in A \neg\exists f \quad \left<n,f\right>\in W$$
   \end{itemize}
 \end{frame}
 
@@ -403,7 +403,7 @@
   \begin{itemize}
     \item \textbf{Stałe parametry.}  $S_1$ -- osiągalne z parametru po
       krawędziach zewnętrznych. Parametr jest stały wtw.:
-      $$\forall n \in S_1 \exists f \quad \left<n,f\right>\in W$$
+      $$\forall n \in S_1 \neg\exists f \quad \left<n,f\right>\in W$$
     \item \textbf{Bezpieczne parametry.} $S_2$ -- osiągalne z
       parametru i węzła zwracanego. Parametr jest bezpieczny wtw. jest
       stały i nie istnieje krawędź wewnętrzna ze zbioru $S_2$ do
@@ -532,7 +532,7 @@
 \begin{frame}{Joe-E}
   Weryfikacja funkcyjności deterministycznej:
   \begin{itemize}
-    \item wyróżniamy podzbiór Javy, który jest językiem
+    \item wyróżniamy podzbiór Javy, który jest deterministycznym językiem
       obiektowo-uprawnieniowym (ang. \emph{object-capability language}), 
   \end{itemize}
 \end{frame}
