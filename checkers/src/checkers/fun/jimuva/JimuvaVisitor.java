@@ -232,8 +232,9 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         }
         TypeMirror superclass = typeElement.getSuperclass();
         if (superclass.getKind() == TypeKind.NONE) {
-            /* The constructor is Object.<init>() */
-            return false;
+            /* The constructor is Object.<init>(). It does nothing, so we
+               assume that it is anonymous. */
+            return true;
         } else if (superclass.getKind() == TypeKind.DECLARED) {
             Element superclassElement = ((DeclaredType) superclass).asElement();
             if (superclassElement.getKind() == ElementKind.CLASS) {
