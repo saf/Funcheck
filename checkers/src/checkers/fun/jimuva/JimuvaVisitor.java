@@ -351,21 +351,18 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
     protected void checkAssignmentAnonymous(AssignmentTree node) {
         ExpressionTree ex = node.getExpression();
         ExpressionTree var = node.getVariable();
-        ThisReferenceSource thisSource = checkNotThis(ex);
-        if (thisSource != null) {
+        if (mayBeThis(ex)) {
             try {
                 Element varElement = TreeUtils.elementFromUse(var);
                 if (varElement.getKind() == ElementKind.FIELD) {
                     checker.report(Result.failure("anonymous.assigns.this.to.field",
                             var.toString()), var);
-                    thisSource.print(checker);
                 }
             } catch (IllegalArgumentException e) {
                 /* Tree is not an element use */
                 if (var.getKind() == Tree.Kind.ARRAY_ACCESS) {
                     checker.report(Result.failure("anonymous.assigns.this.to.array.field",
                             var.toString()), var);
-                    thisSource.print(checker);
                 }
             }
         }
@@ -393,10 +390,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 ExpressionTree select = node.getMethodSelect();
                 if (select.getKind() == Tree.Kind.MEMBER_SELECT) {
                     MemberSelectTree selTree = (MemberSelectTree) select;
-                    ThisReferenceSource selThis = checkNotThis(selTree);
-                    if (selThis != null) {
+                    if (mayBeThis(selTree)) {
                         checker.report(Result.failure("anonymous.calls.non.anonymous.on.alias"), node);
-                        selThis.print(checker);
                         if (state.inImplicitlyAnnotatedMethod()) {
                             checker.note(null, "anonymous.implicit", state.getCurrentMethodName());
                         }
@@ -414,10 +409,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
      */
     protected void checkArgumentsAnonymous(List<? extends ExpressionTree> args) {
         for (ExpressionTree arg : args) {
-            ThisReferenceSource exThisSource = checkNotThis(arg);
-            if (exThisSource != null) {
+            if (mayBeThis(arg)) {
                 checker.report(Result.failure("argument.may.be.this", arg.toString()), arg);
-                exThisSource.print(checker);
             }
         }
     }
@@ -474,50 +467,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         public abstract void print(JimuvaChecker ch);
     }
 
-    /**
-     * Return an error message key if the expression may evaluate to a reference to [this].
-     * @param node the [ExpressionTree] to be checked.
-     */
-    protected ThisReferenceSource checkNotThis(ExpressionTree node) {
-        ThisReferenceSource result = null;
-        if (node.getKind() == Tree.Kind.IDENTIFIER) {
-            IdentifierTree tree = (IdentifierTree) node;
-            Element sym = InternalUtils.symbol(tree);
-            if (state.isThisAlias(sym)) {
-                result = ThisReferenceSource.ALIAS;
-                result.setAliasName(sym.getSimpleName().toString());
-                result.setLocation(state.getThisAssignment(sym));
-                return result;
-            } else if (tree.getName().contentEquals("this")) {
-                return ThisReferenceSource.THIS_LITERAL;
-            }
-        } else if (node.getKind() == Tree.Kind.METHOD_INVOCATION) {
-            MethodInvocationTree tree = (MethodInvocationTree) node;
-            AnnotatedExecutableType method = atypeFactory.methodFromUse(tree);
-            if (!method.hasAnnotation(checker.ANONYMOUS)) {
-                if (TreeUtils.isSelfAccess(node)) {
-                    result = ThisReferenceSource.NONANONYMOUS_ON_THIS;
-                    result.setMethodName(method.getElement().getSimpleName().toString());
-                    return result;
-                } else {
-                    ExpressionTree select = tree.getMethodSelect();
-                    if (select.getKind() == Tree.Kind.MEMBER_SELECT) {
-                        MemberSelectTree selTree = (MemberSelectTree) select;
-                        ThisReferenceSource selError = checkNotThis(selTree.getExpression());
-                        if (selError != null) {
-                            result = ThisReferenceSource.NONANONYMOUS_ON_ALIAS;
-                            result.setInnerReferenceSource(selError);
-                            result.setMethodName(method.getElement().getSimpleName().toString());
-                            result.setAliasName(selTree.getExpression().toString());
-                        }
-                    }
-                }
-            }
-        }
-        return result;
-    }
-
     protected Boolean mayBeThis(ExpressionTree node) {
-        return checkNotThis(node) != null;
+        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node);
+        return type.hasAnnotation(checker.THIS) || type.hasAnnotation(checker.MAYBE_THIS);
     }
 }

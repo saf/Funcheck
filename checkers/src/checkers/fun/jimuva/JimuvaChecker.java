@@ -5,17 +5,24 @@ import checkers.basetype.BaseTypeVisitor;
 import checkers.fun.quals.Anonymous;
 import checkers.fun.quals.Immutable;
 import checkers.fun.quals.ImmutableClass;
+import checkers.fun.quals.MaybeThis;
 import checkers.fun.quals.Mutable;
 import checkers.fun.quals.MutableClass;
+import checkers.fun.quals.NotThis;
 import checkers.fun.quals.ReadOnly;
 import checkers.fun.quals.ReadWrite;
 import checkers.fun.quals.Rep;
+import checkers.fun.quals.This;
 import checkers.fun.quals.WriteLocal;
 import checkers.quals.TypeQualifiers;
 import checkers.types.AnnotatedTypeFactory;
+import checkers.types.QualifierHierarchy;
 import checkers.util.AnnotationUtils;
+import checkers.util.GraphQualifierHierarchy;
 import com.sun.source.tree.CompilationUnitTree;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.HashSet;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.tools.Diagnostic.Kind;
@@ -32,7 +39,9 @@ import javax.tools.Diagnostic.Kind;
     /* Method & constructor qualifiers */
     ReadOnly.class, ReadWrite.class, WriteLocal.class, Anonymous.class,
     /* Field qualifiers */
-    Rep.class
+    Rep.class,
+    /* Annotation for tracking references to this */
+    This.class, NotThis.class, MaybeThis.class
 })
 public class JimuvaChecker extends BaseTypeChecker {
 
@@ -40,7 +49,8 @@ public class JimuvaChecker extends BaseTypeChecker {
     protected JimuvaVisitorState state;
 
     public AnnotationMirror IMMUTABLE, MUTABLE, READONLY, REP, 
-            ANONYMOUS, IMMUTABLE_CLASS;
+            ANONYMOUS, IMMUTABLE_CLASS,
+            THIS, NOT_THIS, MAYBE_THIS;
 
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
@@ -51,6 +61,9 @@ public class JimuvaChecker extends BaseTypeChecker {
         REP        = annotationFactory.fromClass(Rep.class);
         ANONYMOUS  = annotationFactory.fromClass(Anonymous.class);
         IMMUTABLE_CLASS = annotationFactory.fromClass(ImmutableClass.class);
+        THIS       = annotationFactory.fromClass(This.class);
+        NOT_THIS   = annotationFactory.fromClass(NotThis.class);
+        MAYBE_THIS = annotationFactory.fromClass(MaybeThis.class);
         state = new JimuvaVisitorState();
         super.init(processingEnv);
     }
@@ -91,4 +104,47 @@ public class JimuvaChecker extends BaseTypeChecker {
             message(Kind.NOTE, null, String.format(msg, args));
         }
     }
+
+    public static class JimuvaQualifierHierarchy extends GraphQualifierHierarchy {
+
+        public JimuvaQualifierHierarchy(GraphQualifierHierarchy h) {
+            super(h);
+        }
+
+        /**
+         * Every annotation from LHS must have a match in RHS.
+         *
+         * This is because different sets of annotations cover various
+         * features of an element.
+         *
+         * @param rhs
+         * @param lhs
+         * @return
+         */
+        @Override
+        public boolean isSubtype(Collection<AnnotationMirror> rhs, Collection<AnnotationMirror> lhs) {
+            Collection<AnnotationMirror> unmatched = new HashSet<AnnotationMirror>(lhs);
+
+            for (AnnotationMirror al : lhs) {
+                if (!AnnotationUtils.isTypeAnnotation(al)) {
+                    unmatched.remove(al);
+                } else {
+                    for (AnnotationMirror ar : rhs) {
+                        if (isSubtype(ar, al)) {
+                            unmatched.remove(al);
+                        }
+                    }
+                }
+            }
+            return unmatched.isEmpty();
+        }
+    }
+
+    @Override
+    protected QualifierHierarchy createQualifierHierarchy() {
+        QualifierHierarchy hierarchy = super.createQualifierHierarchy();
+        return new JimuvaQualifierHierarchy((GraphQualifierHierarchy) hierarchy);
+    }
+
+
 }

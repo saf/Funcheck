@@ -382,8 +382,12 @@ public class Flow extends TreePathScanner<Void, Void> {
      */
     protected void merge() {
         annos = GenKillBits.copy(annos);
-        annos.and(annosWhenFalse);
+        merge(annos, annosWhenFalse);
         annosWhenTrue = annosWhenFalse = null;
+    }
+
+    protected void merge(GenKillBits<AnnotationMirror> b1, GenKillBits<AnnotationMirror> b2) {
+        b1.and(b2);
     }
 
     /**
@@ -732,13 +736,13 @@ public class Flow extends TreePathScanner<Void, Void> {
             } else {
                 // both branches are alive
                 alive = true;
-                annos.and(after);
+                merge(annos, after);
             }
         } else {
             if (!alive)
                 annos = GenKillBits.copy(beforeElse);
             else
-                annos.and(beforeElse);
+                merge(annos, beforeElse);
         }
         popLastLevel();
 
@@ -760,7 +764,7 @@ public class Flow extends TreePathScanner<Void, Void> {
         annos = before;
 
         scanExpr(node.getFalseExpression());
-        annos.and(after);
+        merge(annos, after);
 
         return null;
     }
@@ -779,8 +783,8 @@ public class Flow extends TreePathScanner<Void, Void> {
             annos = annosWhenTrue;
             scanStat(node.getStatement());
             if (pass) break;
-            annosWhenTrue.and(annoEntry);
-            annos.and(annoEntry);
+            merge(annosWhenTrue, annoEntry);
+            merge(annos, annoEntry);
             pass = true;
         } while (true);
         annos = annoCond;
@@ -800,7 +804,7 @@ public class Flow extends TreePathScanner<Void, Void> {
             annoCond = annosWhenFalse;
             annos = annosWhenTrue;
             if (pass) break;
-            annosWhenTrue.and(annoEntry);
+            merge(annosWhenTrue, annoEntry);
             pass = true;
         } while (true);
         annos = annoCond;
@@ -822,8 +826,8 @@ public class Flow extends TreePathScanner<Void, Void> {
             for (StatementTree tree : node.getUpdate())
                 scanStat(tree);
             if (pass) break;
-            annosWhenTrue.and(annoEntry);
-            annos.and(annoEntry);
+            merge(annosWhenTrue, annoEntry);
+            merge(annos, annoEntry);
             pass = true;
         } while (true);
         annos = annoCond;
@@ -866,7 +870,7 @@ public class Flow extends TreePathScanner<Void, Void> {
         GenKillBits<AnnotationMirror> annoAfterBlock = GenKillBits.copy(annos);
         pushNewLevel();
         GenKillBits<AnnotationMirror> result = tryBits.pop();
-        annos.and(result);
+        merge(annos, result);
         popLastLevel();
         if (node.getCatches() != null) {
             boolean catchAlive = false;
@@ -906,7 +910,7 @@ public class Flow extends TreePathScanner<Void, Void> {
         if (!thrown.isEmpty()
                 && TreeUtils.enclosingOfKind(getCurrentPath(), Tree.Kind.TRY) != null) {
             if (!tryBits.isEmpty())
-                tryBits.peek().and(annos);
+                merge(tryBits.peek(), annos);
         }
 
         return null;
