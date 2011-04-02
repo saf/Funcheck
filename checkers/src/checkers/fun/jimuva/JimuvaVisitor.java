@@ -377,7 +377,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
         /* Check that non-@Anonymous methods are not called on [this] */
         AnnotatedExecutableType method = atypeFactory.methodFromUse(node);
-        if (!method.hasAnnotation(checker.ANONYMOUS)
+        if (method.getElement().getAnnotation(Anonymous.class) == null
                     && !isBaseConstructorCall(node)) {
             if (TreeUtils.isSelfAccess(node)) {
                 checker.report(Result.failure("anonymous.calls.non.anonymous", 

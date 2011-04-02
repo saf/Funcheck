@@ -4,6 +4,7 @@ import checkers.flow.Flow;
 import checkers.flow.GenKillBits;
 import checkers.fun.quals.Anonymous;
 import checkers.fun.quals.Immutable;
+import checkers.fun.quals.ImmutableClass;
 import checkers.fun.quals.ReadOnly;
 import checkers.fun.quals.WriteLocal;
 import checkers.types.AnnotatedTypeMirror;
@@ -64,13 +65,14 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                     (receiverType.hasAnnotation(checker.THIS) 
                     || receiverType.hasAnnotation(checker.MAYBE_THIS)
                     || TreeUtils.isSelfAccess(inv))) {
-                if (mType.hasAnnotation(checker.ANONYMOUS)) {
+                if (mElem.getAnnotation(Anonymous.class) != null) {
                     type.addAnnotation(checker.NOT_THIS);
                 } else {
                     type.addAnnotation(checker.MAYBE_THIS);
                 }
             } else {
-                /* #TODO Is this valid? */
+                /* This is valid under the assumption that no references to this
+                 * have already leaked from the object. */
                 type.addAnnotation(checker.NOT_THIS);
             }
         } else if (tree.getKind() == Tree.Kind.IDENTIFIER) {
@@ -121,7 +123,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         TypeElement enclosingClass = ElementUtils.enclosingClass(el);
         AnnotatedTypeMirror.AnnotatedDeclaredType enclosingClassType =
                 getAnnotatedType(enclosingClass);
-        if (enclosingClassType.hasAnnotation(checker.IMMUTABLE_CLASS)) {
+        if (enclosingClass.getAnnotation(ImmutableClass.class) != null) {
             AnnotationMirror implicit = el.getKind() == ElementKind.CONSTRUCTOR
                     ? checker.ANONYMOUS
                     : checker.READONLY;
