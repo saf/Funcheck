@@ -108,6 +108,10 @@ public class JimuvaVisitorState {
         return currentMethod.hasAnnotation(ann);
     }
 
+    public Boolean isCurrentMethodReceiver(AnnotationMirror ann) {
+        return currentMethod.getReceiverType().hasAnnotation(ann);
+    }
+
     public String getCurrentMethodName() {
         return currentMethod.getElement().getSimpleName().toString();
     }

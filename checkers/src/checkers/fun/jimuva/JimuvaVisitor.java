@@ -2,23 +2,19 @@ package checkers.fun.jimuva;
 
 import checkers.basetype.BaseTypeVisitor;
 import checkers.fun.quals.Anonymous;
-import checkers.fun.quals.Function;
 import checkers.fun.quals.ImmutableClass;
 import checkers.source.Result;
 import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import checkers.types.AnnotatedTypeMirror.AnnotatedExecutableType;
-import checkers.util.ElementUtils;
-import checkers.util.InternalUtils;
+import checkers.util.AnnotationUtils;
 import checkers.util.TreeUtils;
-import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
-import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
@@ -27,11 +23,8 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
-import com.sun.tools.javac.util.Pair;
 import java.io.IOException;
-import java.util.LinkedList;
 import java.util.List;
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -39,10 +32,8 @@ import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
-import javax.lang.model.type.NoType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.tools.Diagnostic.Kind;
 
 /**
  *
@@ -77,7 +68,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                             state.getCurrentMethodName(), state.getCurrentClassName());
                 }
             } else {
-                checker.report(Result.failure("assign.immutable.field"), node);
+                checker.report(Result.failure("assign.immutable.field", 
+                        varTree.toString(), receiver.getElement().toString()), node);
             }
         }
         AnnotatedTypeMirror methodReceiver = state.getCurrentMethod().getReceiverType();
@@ -117,8 +109,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
     @Override
     protected void commonAssignmentCheck(AnnotatedTypeMirror varType, AnnotatedTypeMirror valueType, Tree valueTree, String errorKey, Void p) {
-        // System.err.println("Assigning " + valueTree.toString() + " (" + valueType.toString() +
-        //        ") to " + varType.toString());
+//        System.err.println("Assigning " + valueTree.toString() + " (" + valueType.toString() +
+//               ") to " + varType.toString());
 
         /* An object cannot lose or gain the @Rep annotation */
         if (varType.hasAnnotation(checker.REP) 
@@ -133,11 +125,13 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         if (varType.hasAnnotation(checker.MUTABLE)
                 && valueType.hasAnnotation(checker.IMMUTABLE)) {
             checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
-        } else if (varType.hasAnnotation(checker.IMMUTABLE)
-                && valueType.hasAnnotation(checker.MUTABLE)) {
-            checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
         } else {
-            super.commonAssignmentCheck(varType, valueType, valueTree, errorKey, p);
+            AnnotatedTypeMirror varCopy = annoTypes.deepCopy(varType);
+            /* Allow assignment of @Mutable to @Immutable */
+            if (varType.hasAnnotation(checker.IMMUTABLE)) {
+                varCopy.removeAnnotation(checker.IMMUTABLE);
+            }
+            super.commonAssignmentCheck(varCopy, valueType, valueTree, errorKey, p);
         }
     }
 
@@ -164,12 +158,14 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
     @Override
     public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
         AnnotatedExecutableType calledMethod = atypeFactory.methodFromUse(node);
-        // System.err.println("INVOCATION: " + node.toString());
+//        System.err.println("INVOCATION: " + node.toString());
         AnnotatedTypeMirror receiver = atypeFactory.getReceiver(node);
         AnnotatedTypeMirror calledMethodReceiver = calledMethod.getReceiverType();
 
+//        System.err.println(receiver.toString() + " ...---> " + calledMethod.toString());
+
         /* Method calls cannot alter the inner representation of @Immutable objects */
-        if (state.isCurrentMethod(checker.IMMUTABLE)
+        if (state.isCurrentMethodReceiver(checker.IMMUTABLE)
                 && receiver != null && receiver.hasAnnotation(checker.REP)
                 && calledMethodReceiver != null && !calledMethodReceiver.hasAnnotation(checker.IMMUTABLE)) {
             checker.report(Result.failure("nonreadonly.call.on.rep",
@@ -295,11 +291,19 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         AnnotatedTypeMirror treeReceiver = methodReceiver.getCopy(false);
         treeReceiver.addAnnotations(atypeFactory.getReceiver(node).getAnnotations());
 
-        /* Allow for @ReadOnly calls on @Mutable references. */
+//        System.err.println("Method receiver: " + methodReceiver.toString()
+//                + "Tree receiver: " + treeReceiver.toString());
+
         if (treeReceiver.hasAnnotation(checker.MUTABLE)
                 && methodReceiver.hasAnnotation(checker.IMMUTABLE)) {
+            /* Allow for @ReadOnly calls on @Mutable references. */
             mcp.getReceiverType().removeAnnotation(checker.IMMUTABLE);
             mcp.getReceiverType().addAnnotation(checker.MUTABLE);
+        } else if (treeReceiver.hasAnnotation(checker.IMMUTABLE) 
+                && methodReceiver.hasAnnotation(checker.MUTABLE)) {
+            /* Disallow non-@Readonly calls on @Immutable */
+            checker.report(Result.failure("immutable.calls.nonreadonly", mcp.getElement().toString(),
+                    treeReceiver.toString()), node);
         }
         return super.checkMethodInvocability(mcp, node);
     }
