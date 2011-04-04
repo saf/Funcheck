@@ -910,4 +910,14 @@ public class AnnotationUtils {
         };
         return false;
     }
+
+    public static boolean isTypeAnnotation(AnnotationMirror a) {
+        Target t = (Target) a.getAnnotationType().asElement().getAnnotation(Target.class);
+        if (t != null) {
+            return hasTarget(a, ElementType.TYPE_USE);
+        }
+        /* If no @Target annotation is present, Checker Framework considers the
+         * annotation to be a type qualifier. */
+        return true;
+    }
 }
