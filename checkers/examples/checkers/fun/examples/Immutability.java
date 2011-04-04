@@ -2,7 +2,6 @@ package checkers.fun.examples;
 
 import checkers.fun.quals.Anonymous;
 import checkers.fun.quals.Immutable;
-import checkers.fun.quals.ImmutableClass;
 import checkers.fun.quals.Mutable;
 import checkers.fun.quals.ReadOnly;
 
@@ -20,6 +19,7 @@ public class Immutability {
         @Anonymous
         public IntHolder(Integer n) {
             this.n = n;
+            constant = 100;
         }
 
         @ReadOnly
@@ -38,7 +38,8 @@ public class Immutability {
 
     public static void main(String[] args) {
 
-        @Immutable IntHolder immutable = new /*@Immutable*/ IntHolder(42);
+        @Immutable IntHolder immutable = new /*@Immutable*/ IntHolder(21);
+        immutable = new /*@Immutable*/ IntHolder(42);   /* This should be permitted! */
         @Mutable IntHolder mutable = new IntHolder(21);
 
         System.out.println("Immutable: " + immutable.get().toString());

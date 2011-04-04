@@ -394,7 +394,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                         method.getElement().getSimpleName().toString(),
                         state.getCurrentMethodName()), node);
                 if (state.inImplicitlyAnnotatedMethod()) {
-                    checker.note(null, "anonymous.implicit", state.getCurrentMethodName());
+                    checker.note(null, "anonymous.implicit", 
+                            state.getCurrentMethodName(), state.getCurrentClassName());
                 }
             } else {
                 ExpressionTree select = node.getMethodSelect();
