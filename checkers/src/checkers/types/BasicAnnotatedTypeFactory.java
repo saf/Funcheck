@@ -170,7 +170,9 @@ public class BasicAnnotatedTypeFactory<Checker extends BaseTypeChecker> extends 
         if (useFlow) {
             final AnnotationMirror inferred = flow.test(tree);
             if (inferred != null) {
-                type.clearAnnotations();
+                for (AnnotationMirror a : flow.getAnnotations()) {
+                    type.removeAnnotation(a);
+                }
                 type.addAnnotation(inferred);
             }
         }

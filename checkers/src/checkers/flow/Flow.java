@@ -980,4 +980,8 @@ public class Flow extends TreePathScanner<Void, Void> {
         return (element.getKind().isField()
                 && !ElementUtils.isFinal(element));
     }
+
+    public Set<AnnotationMirror> getAnnotations() {
+        return annotations;
+    }
 }

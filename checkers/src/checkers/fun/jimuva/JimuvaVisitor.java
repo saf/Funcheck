@@ -345,6 +345,12 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     t = (ArrayAccessTree) e;
                 }
             }
+        } else {
+            AnnotatedTypeMirror receiver = atypeFactory.getReceiver(varTree);
+            if (receiver != null && receiver.hasAnnotation(checker.REP) && receiverImmutable) {
+                checker.report(Result.failure("assignment.to.field.of.rep",
+                        varTree.toString(), receiver.getElement().toString()), node);
+            }
         }
     }
 
