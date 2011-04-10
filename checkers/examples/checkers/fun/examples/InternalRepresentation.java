@@ -53,13 +53,22 @@ public class InternalRepresentation {
             freeHolder = new IntHolder(21);
         }
 
+        public A(A a) {
+            this.repHolder = a.repHolder; /* Prohibited access to @Rep object. */
+        }
+
         @ReadOnly
-        void process() {
+        public @Rep IntHolder process() {
             repHolder.copy(freeHolder); /* Can't modify repHolder here! */
-            freeHolder.copy(repHolder); /* Can't pass object owned by <this> to method (???) */
+            freeHolder.copy(repHolder); /* Can't pass object owned by "this" to a foreign method */
+            this.nop(repHolder);        /* This is OK, though */
 
             repHolder.n = 10; /* Also, can't modify the state of repHolder */
+            return repHolder; /* Cannot return a @Rep object */
         }
+
+        @ReadOnly
+        void nop(@Rep IntHolder h) {}
     }
 
     public static void main(String [] args) {

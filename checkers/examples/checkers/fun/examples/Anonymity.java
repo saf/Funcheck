@@ -6,7 +6,11 @@
 package checkers.fun.examples;
 
 import checkers.fun.quals.*;
+import java.util.HashSet;
+import java.util.LinkedList;
+import java.util.List;
 import java.util.Random;
+import java.util.Set;
 
 /**
  * Example on enforcing anonymity of constructors.
@@ -15,51 +19,72 @@ import java.util.Random;
  */
 public class Anonymity {
 
-    
-    public static class Multiplier {
-        Integer result;
+    static Random r;
 
-        @Anonymous
-        public Multiplier(int a, int b) {
-            chainedMultiply(a, b); /* Can't call that -- not @Anonymous */
-            multiply(a, b);        /* OK */
-            System.err.println(getResult().toString());
-        }
+    private void init() { r = new Random(); }
 
-        public Multiplier chainedMultiply(int a, int b) {
-            result = a * b;
-            return this;
-        }
+    public static class A {
 
-        @Anonymous
-        public void multiply(int a, int b) {
-            result = a * b;
+        List<Integer> list;
+        Set<Integer> set;
+
+        public A() {
+            list = new LinkedList<Integer>();
+            set  = new HashSet<Integer>();
         }
 
         @Anonymous
-        public Integer getResult() {
-            return result;
+        public A(List<Integer> l) {
+            Initializer i = new Initializer();
+            /* The Initializer 'i' might observe the state of the constructed object
+             * while it is not yet fully initialized. Thus, the call is
+             * prohibited in an @Anonymous constructor */
+            i.initialize(this, l);
+            list = l;
         }
 
         @Anonymous
-        public Integer getRandomResult() {
-            @Immutable Multiplier m;
-            Random r = new Random();
-            if (r.nextBoolean()) {
-                m = new /*@Immutable*/ Multiplier(r.nextInt(100), r.nextInt(100));
-            } else {
-                m = this;
-            }
-            DangerousClass.doDangerousStuffWith(m); /* m may be this -- not anonymous */
-            return m.getResult();
+        public A(Integer n) {
+            this.prepareSet(n); /* OK */
+            prepareSet(n);      /* OK */
+            prepareList(n);     /* Error: the called method is not @Anonymous
+                                   and might leak references to a partially
+                                   constructed object. */
         }
+
+        @Anonymous
+        protected void prepareSet(Integer n) {
+            for (int i = 1; i <= n; i++)
+                set.add(i);
+        }
+
+        protected void prepareList(Integer n) {
+            for (int i = 1; i <= n; i++)
+                list.add(i);
+        }
+
+        @ReadOnly @Anonymous
+        public Set<Integer> getSet() { return set; }
     }
 
-    public static class DangerousClass {
-        static void doDangerousStuffWith(Multiplier m) {}
+    public static class Initializer {
+
+        void initialize(A a, List<Integer> l) {
+            for (Integer i : l)
+                a.getSet().add(i);
+        }
+
     }
 
     public static void main(String [] args) {
-        System.err.println((new /*@Immutable*/ Multiplier(2, 3)).getRandomResult().toString());
+        /* This call issues a warning: 'a' is constructed using a non-anonymous
+         * constructor. Hence, the state of the partially-constructed 'a' may leak
+         * outside the constructor. */
+        @Immutable A a = new /*@Immutable*/ A();
+
+        @Immutable A b = new /*@Immutable*/ A(5);
+        System.out.println(b.getSet().toString());
     }
+    
+    
 }

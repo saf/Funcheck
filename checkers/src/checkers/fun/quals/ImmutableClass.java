@@ -10,4 +10,5 @@ import java.lang.annotation.*;
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.CLASS)
 @SubtypeOf({})
+@Inherited
 public @interface ImmutableClass {}

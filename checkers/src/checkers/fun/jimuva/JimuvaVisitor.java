@@ -173,8 +173,16 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     calledMethodReceiver.getElement().getSimpleName().toString()), node);
         }
 
+        /* Disallow passing references to 'this' as arguments of foreign methods. */
         if (state.isCurrentMethod(checker.ANONYMOUS)) {
             checkCallAnonymous(node);
+        }
+
+
+        if (!TreeUtils.isSelfAccess(node)
+                || (receiver != null && !receiver.hasAnnotation(checker.THIS))) {
+            /* Check that @Rep objects are not passed to foreign methods */
+            checkArgumentsRep(node.getArguments());
         }
 
         return super.visitMethodInvocation(node, p);
@@ -185,6 +193,17 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         if (state.isCurrentMethod(checker.ANONYMOUS)
                 && mayBeThis(node.getExpression())) {
             checker.report(Result.failure("anonymous.returns.this"), node);
+        }
+
+        /* Prohibit returning a @Rep object. This is only allowed in the case of private or
+         * protected methods or ImmutableClasses. */
+        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node.getExpression());
+        if (type.hasAnnotation(checker.REP)) {
+            ExecutableElement currentMethod = state.getCurrentMethod().getElement();
+            if (currentMethod.getModifiers().contains(Modifier.PUBLIC)
+                    || state.getCurrentClass().hasAnnotation(checker.IMMUTABLE_CLASS)) {
+                checker.report(Result.failure("returning.rep", node.getExpression().toString()), node);
+            }
         }
         return super.visitReturn(node, p);
     }
@@ -250,6 +269,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             /* Do not pass this to foreign constructors. */
             checkArgumentsAnonymous(node.getArguments());
         }
+        checkArgumentsRep(node.getArguments());
         checkNewReferenceType(node.getIdentifier());
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node.getIdentifier());
         AnnotatedExecutableType constructor = atypeFactory.constructorFromUse(node);
@@ -307,6 +327,21 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     treeReceiver.toString()), node);
         }
         return super.checkMethodInvocability(mcp, node);
+    }
+
+    @Override
+    public Void visitMemberSelect(MemberSelectTree node, Void p) {
+        /* Prevent access to inner representation of a foreign object. */
+        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node);
+        if (type.hasAnnotation(checker.REP)) {
+            ExpressionTree expression = node.getExpression();
+            AnnotatedTypeMirror selectType = atypeFactory.getAnnotatedType(expression);
+            if (selectType.hasAnnotation(checker.MAYBE_THIS)
+                    || selectType.hasAnnotation(checker.NOT_THIS)) {
+                checker.report(Result.failure("accessing.foreign.rep", node.toString()), node);
+            }
+        }
+        return super.visitMemberSelect(node, p);
     }
 
     /**
@@ -425,6 +460,25 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         for (ExpressionTree arg : args) {
             if (mayBeThis(arg)) {
                 checker.report(Result.failure("argument.may.be.this", arg.toString()), arg);
+                if (state.inImplicitlyAnnotatedMethod()) {
+                    checker.note(null, "anonymous.implicit",
+                            state.getCurrentMethodName(), state.getCurrentClassName());
+                }
+            }
+        }
+    }
+
+    /**
+     * Validate a call of a foreign method/constructor by checking that no
+     * @Rep objects are passed as arguments.
+     *
+     * @param args The list of arguments to be checked.
+     */
+    protected void checkArgumentsRep(List<? extends ExpressionTree> args) {
+        for (ExpressionTree arg : args) {
+            AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(arg);
+            if (type.hasAnnotation(checker.REP)) {
+                checker.report(Result.failure("passing.rep.to.foreign.method", arg.toString()), arg);
             }
         }
     }
