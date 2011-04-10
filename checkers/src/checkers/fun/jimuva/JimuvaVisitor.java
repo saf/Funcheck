@@ -8,6 +8,7 @@ import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import checkers.types.AnnotatedTypeMirror.AnnotatedExecutableType;
 import checkers.util.AnnotationUtils;
+import checkers.util.InternalUtils;
 import checkers.util.TreeUtils;
 import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
@@ -58,9 +59,11 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         ExpressionTree varTree = node.getVariable();
 
         AnnotatedTypeMirror receiver = atypeFactory.getReceiver(varTree);
-        //System.err.println("Receiver type is " + receiver.toString());
-        if (receiver != null && receiver.hasAnnotation(checker.IMMUTABLE)) {
-            if (TreeUtils.isSelfAccess(varTree)) {
+        Element varElement = InternalUtils.symbol(varTree);
+        if (receiver != null && receiver.hasAnnotation(checker.IMMUTABLE)
+                && varElement.getKind().isField()
+                && receiver.getKind() != TypeKind.ARRAY) {
+            if (TreeUtils.isSelfAccess(varTree) && varElement.getKind() == ElementKind.FIELD) {
                 checker.report(Result.failure("assign.readonly.receiver.field", 
                         varTree.toString(), state.getCurrentMethodName()), node);
                 if (state.inImplicitlyAnnotatedMethod()) {
@@ -78,17 +81,6 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
         if (state.isCurrentMethod(checker.ANONYMOUS)) {
             checkAssignmentAnonymous(node);
-        }
-
-        if (mayBeThis(node.getExpression())) {
-            /* #TODO this may err if a method enclosed in another method
-             * hides the enclosing method's local variable. */
-            try {
-                Element varElement = TreeUtils.elementFromUse(node.getVariable());
-                state.addThisAlias(varElement, node);
-            } catch (IllegalArgumentException e) {
-                /* The node was not an element use. Swallow the exception. */
-            }
         }
 
         return super.visitAssignment(node, p);
@@ -132,6 +124,14 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 varCopy.removeAnnotation(checker.IMMUTABLE);
             }
             super.commonAssignmentCheck(varCopy, valueType, valueTree, errorKey, p);
+        }
+
+        if (varType.getKind() == TypeKind.ARRAY && valueType.getKind() == TypeKind.ARRAY) {
+            AnnotatedTypeMirror.AnnotatedArrayType varArrayType = (AnnotatedTypeMirror.AnnotatedArrayType) varType;
+            AnnotatedTypeMirror.AnnotatedArrayType valueArrayType = (AnnotatedTypeMirror.AnnotatedArrayType) valueType;
+
+            commonAssignmentCheck(varArrayType.getComponentType(), valueArrayType.getComponentType(),
+                    valueTree, errorKey, p);
         }
     }
 
@@ -203,7 +203,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
      * @param tree The array type specification tree.
      */
     protected void checkNewReferenceFromDefaultConstructor(Tree tree) {
-        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
+        AnnotatedTypeMirror type = atypeFactory.fromTypeTree(tree);
         if (type.getKind() == TypeKind.DECLARED) {
             Element element = ((AnnotatedDeclaredType) type).getUnderlyingType().asElement();
             assert element.getKind() == ElementKind.CLASS : "Array initializer not a class";
@@ -267,7 +267,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
      * @param tree The Tree representing the declared type of the new object,
      */
     protected void checkNewReferenceType(Tree tree) {
-        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(tree);
+        AnnotatedTypeMirror type = atypeFactory.fromTypeTree(tree);
+        
         if (type.getKind() == TypeKind.DECLARED) {
             AnnotatedDeclaredType declaredType = (AnnotatedDeclaredType) type;
             Element typeElement = declaredType.getUnderlyingType().asElement();
@@ -325,7 +326,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     String errorKey = rep
                             ? "assignment.to.rep.array.of.immutable"
                             : "assignment.to.field.of.immutable.array";
-                    checker.report(Result.failure(errorKey, e.toString()), varTree);
+                    checker.report(Result.failure(errorKey, node.getVariable().toString(), e.toString()), varTree);
                     dig = false;
                 } else if (!(e instanceof ArrayAccessTree)) {
 //                    System.err.println((et.hasAnnotation(checker.REP) ? "yes " : " no")
@@ -337,12 +338,14 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                         String errorKey = rep
                                 ? "assignment.to.rep.array.of.rep.array.receiver"
                                 : "assignment.to.rep.array.of.receiver";
-                        checker.report(Result.failure(errorKey, e.toString()), varTree);
+                        checker.report(Result.failure(errorKey, node.getVariable().toString(), t.toString()), varTree);
                     }
                     dig = false;
                 } else if (et.hasAnnotation(checker.REP)) {
                     rep = true;
                     t = (ArrayAccessTree) e;
+                } else {
+                    dig = false;
                 }
             }
         } else {

@@ -8,6 +8,7 @@ import checkers.fun.quals.ReadOnly;
 import checkers.fun.quals.WriteLocal;
 import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeMirror.AnnotatedArrayType;
+import checkers.types.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import checkers.types.AnnotatedTypeMirror.AnnotatedExecutableType;
 import checkers.types.BasicAnnotatedTypeFactory;
 import checkers.util.AnnotationUtils;
@@ -139,6 +140,18 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 receiver.addAnnotation(checker.IMMUTABLE);
             }
         }
+    }
+
+    /**
+     * Refine the type of an instance method's receiver by adding the @This annotation.
+     *
+     * @return the type of 'this' in the current location. 
+     */
+    @Override
+    public AnnotatedDeclaredType getSelfType(Tree tree) {
+        AnnotatedDeclaredType type = super.getSelfType(tree);
+        type.addAnnotation(checker.THIS);
+        return type;
     }
 
     /**
