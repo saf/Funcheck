@@ -20,11 +20,11 @@ public class Implicit {
 
     @ImmutableClass
     public static class A {
-        private List<Integer> l;
+        public List<Integer> l; /* Can't be public in @Immutable class */
 
         public A(Integer n) {
             l = new LinkedList<Integer>();
-            for (int i = 1; i <= n; i++) {
+            for (int i = n; i >= 1; i--) {
                 l.add(i);
             }
             Sorter s = new Sorter();
@@ -46,6 +46,14 @@ public class Implicit {
             Collections.sort(al);
             a.set(al);
         }
+    }
+
+    public static void main(String [] args) {
+        A a = new A(5); /* Illegal: can't create @Mutable reference */
+        @Immutable A b = new /*@Immutable*/ A(5);
+        Sorter s = new Sorter();
+
+        s.sort(b); /* Illegal: cannot pass @Immutable object as a @Mutable argument */
     }
 
 }

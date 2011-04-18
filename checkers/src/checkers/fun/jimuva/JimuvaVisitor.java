@@ -96,6 +96,13 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 && type.hasAnnotation(checker.REP)) {
             checker.report(Result.failure("public.rep.field", el.getSimpleName()), node);
         }
+        if (el.getKind().isField()
+                && state.isCurrentClass(checker.IMMUTABLE_CLASS)
+                && el.getModifiers().contains(Modifier.PUBLIC)
+                && !el.getModifiers().contains(Modifier.FINAL)) {
+            checker.report(Result.failure("public.field.of.immutable.class",
+                    el.getSimpleName(), state.getCurrentClassName()), el);
+        }
         return super.visitVariable(node, p);
     }
 
