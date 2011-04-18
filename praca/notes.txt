@@ -1,0 +1,42 @@
+* Immutability in an open world...
+
+  In order to be able to prove immutability in an open world, 
+  we would need to ban 'public' fields entirely. 
+
+  It should suffice for now that the immutability in an open world 
+  will stand in the case of @ImmutableClass. Consider providing a warning
+  if an @Immutable object (albeit not of an @ImmutableClass) has 
+  non-final public fields.
+
+* @Rep management:
+
+  - @Rep cannot be returned from public methods and 
+    any methods of a non-@ImmutableClass.
+
+  - @Rep cannot be passed to methods called on objects
+    which we do not know to be 'this'.
+
+  - @Rep fields cannot be public (protection in an open world)
+  
+  - protected and private @Rep fields cannot be accessed by a foreign
+    object (which would be OK due to the scope modifiers being per
+    class, not per object in Java).
+
+    This violates the @Rep protection in an open world, however, when
+    a checked class is extended by an unchecked one. This would be
+    solved by disallowing @Rep fields to be protected (too
+    strict?). This is OK if all subclasses are checked, since
+    @ImmutableClass is @Inherited. 
+
+* Immutability in an open world and complex structures (collections)
+
+  - The previous solution was to ban passing references to @Rep
+    objects entirely.  This would enable inferring IOW, but is too
+    strict to allow simple constructs such as collections whose
+    elements are part of their state.
+
+  - What is to be considered is the Universes type system and a @Peer
+    annotation derived therefrom. It would still require that we
+    disallow passing @Rep references to foreign objects, but would
+    allow for IOW to hold whilst enabling collections of @Rep elements. 
+
