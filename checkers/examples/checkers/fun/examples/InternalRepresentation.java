@@ -57,6 +57,11 @@ public class InternalRepresentation {
             this.repHolder = a.repHolder; /* Prohibited access to @Rep object. */
         }
 
+        public A(@Rep IntHolder hld) {
+            this.repHolder = hld;
+            this.freeHolder = new IntHolder(21);
+        }
+
         @ReadOnly
         public @Rep IntHolder process() {
             repHolder.copy(freeHolder); /* Can't modify repHolder here! */
@@ -65,6 +70,14 @@ public class InternalRepresentation {
 
             repHolder.n = 10; /* Also, can't modify the state of repHolder */
             return repHolder; /* Cannot return a @Rep object */
+        }
+
+        public @Rep IntHolder makeCopy() {
+            A peer = new A(repHolder); /* Cannot pass @Rep as argument! */
+            Integer val = peer.repHolder.get(); /* Cannot access @Rep of another object */
+            repHolder.set(val);
+            
+            return repHolder; /* No can do! */
         }
 
         @ReadOnly

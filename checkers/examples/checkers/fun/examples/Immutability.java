@@ -19,7 +19,6 @@ public class Immutability {
         @Anonymous
         public IntHolder(Integer n) {
             this.n = n;
-            constant = 100;
         }
 
         @ReadOnly
@@ -39,8 +38,9 @@ public class Immutability {
     public static void main(String[] args) {
 
         @Immutable IntHolder immutable = new /*@Immutable*/ IntHolder(21);
-        immutable = new /*@Immutable*/ IntHolder(42);   /* This should be permitted! */
-        @Mutable IntHolder mutable = new IntHolder(21);
+        immutable = new /*@Immutable*/ IntHolder(42);   /* This is OK! */
+        @Mutable IntHolder mutable = immutable;         /* Error */
+        mutable = new IntHolder(21);
 
         System.out.println("Immutable: " + immutable.get().toString());
         System.out.println("Mutable: " + mutable.get().toString());
@@ -53,9 +53,6 @@ public class Immutability {
 
         immutable.copy(mutable); /* Error: non-@Readonly method called */
         mutable.copy(immutable); /* OK - argument of copy is read-only */
-
-        System.out.println("Immutable: " + immutable.get().toString());
-        System.out.println("Mutable: " + mutable.get().toString());
     }
 
 }
