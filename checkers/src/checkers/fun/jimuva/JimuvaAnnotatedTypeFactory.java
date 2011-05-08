@@ -21,6 +21,7 @@ import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.LiteralTree;
+import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.NewClassTree;
@@ -74,6 +75,16 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 /* #TODO Is this valid? */
                 type.addAnnotation(checker.NOT_THIS);
             }
+
+            /* When a method of a @Rep object returns @Peer, the result is @Rep. */
+            if (receiverType != null && mType.getReturnType().hasAnnotation(checker.PEER)) {
+                type.removeAnnotation(checker.PEER);
+                if (receiverType.hasAnnotation(checker.REP)) {
+                    type.addAnnotation(checker.REP);
+                } else if (receiverType.hasAnnotation(checker.PEER)) {
+                    type.addAnnotation(checker.PEER);
+                }
+            }
         } else if (tree.getKind() == Tree.Kind.IDENTIFIER) {
             IdentifierTree ident = (IdentifierTree) tree;
             if (ident.getName().contentEquals("this")) {
@@ -82,6 +93,22 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         } else if (tree.getKind() == Tree.Kind.NEW_ARRAY
                 || tree.getKind() == Tree.Kind.NEW_CLASS) {
             type.addAnnotation(checker.NOT_THIS);
+        } else if (tree.getKind() == Tree.Kind.MEMBER_SELECT) {
+
+            /* When accessing a @Peer field of a @Rep object, the result is @Rep */
+            MemberSelectTree mst = (MemberSelectTree) tree;
+            Element elem = TreeUtils.elementFromUse(mst);
+            AnnotatedTypeMirror elemType = getAnnotatedType(elem);
+            Element expElem = TreeUtils.elementFromUse(mst.getExpression());
+            AnnotatedTypeMirror expElemType = getAnnotatedType(expElem);
+            if (elemType.hasAnnotation(checker.PEER)) {
+                type.removeAnnotation(checker.PEER);
+                if (expElemType.hasAnnotation(checker.REP)) {
+                    type.addAnnotation(checker.REP);
+                } else if (expElemType.hasAnnotation(checker.PEER)) {
+                    type.addAnnotation(checker.PEER);
+                }
+            }
         }
         return type;
     }
@@ -92,6 +119,12 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         if (elt.getKind() == ElementKind.PARAMETER) {
             type.addAnnotation(checker.NOT_THIS);
         }
+        if (!type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER)
+                && (elt.getKind() == ElementKind.FIELD || elt.getKind() == ElementKind.PARAMETER
+                    || elt.getKind() == ElementKind.LOCAL_VARIABLE)) {
+            type.addAnnotation(checker.WORLD);
+        }
+        //System.err.println("Type of " + elt.toString() + " is " + type.toString());
         return type;
     }
 

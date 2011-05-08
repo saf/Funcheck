@@ -25,6 +25,7 @@ import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import java.io.IOException;
+import java.util.LinkedList;
 import java.util.List;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
@@ -111,35 +112,49 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 //        System.err.println("Assigning " + valueTree.toString() + " (" + valueType.toString() +
 //               ") to " + varType.toString());
 
+        AnnotatedTypeMirror varCopy = annoTypes.deepCopy(varType);
+
         /* An object cannot lose or gain the @Rep annotation */
-        if (varType.hasAnnotation(checker.REP) 
-                && !valueType.hasAnnotation(checker.REP)) {
+        if (varCopy.hasAnnotation(checker.REP)
+                && !valueType.hasAnnotation(checker.REP)
+                && !(valueType instanceof AnnotatedTypeMirror.AnnotatedNullType)) {
             checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
         } else if (!varType.hasAnnotation(checker.REP)
                 && valueType.hasAnnotation(checker.REP)) {
             checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
+        } else {
+            varCopy.removeAnnotation(checker.REP);
+        }
+
+        /* An object cannot lose or gain the @Peer annotation */
+        if (varCopy.hasAnnotation(checker.PEER)
+                && !valueType.hasAnnotation(checker.PEER)
+                && !(valueType instanceof AnnotatedTypeMirror.AnnotatedNullType)) {
+            checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
+        } else if (!varCopy.hasAnnotation(checker.PEER)
+                && valueType.hasAnnotation(checker.PEER)) {
+            checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
+        } else {
+            varCopy.removeAnnotation(checker.REP);
         }
 
         /* An object cannot lose or gain the @Immutable annotation */
-        if (varType.hasAnnotation(checker.MUTABLE)
+        if (varCopy.hasAnnotation(checker.MUTABLE)
                 && valueType.hasAnnotation(checker.IMMUTABLE)) {
             checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
         } else {
-            AnnotatedTypeMirror varCopy = annoTypes.deepCopy(varType);
-            /* Allow assignment of @Mutable to @Immutable */
-            if (varType.hasAnnotation(checker.IMMUTABLE)) {
-                varCopy.removeAnnotation(checker.IMMUTABLE);
-            }
-            super.commonAssignmentCheck(varCopy, valueType, valueTree, errorKey, p);
+            varCopy.removeAnnotation(checker.IMMUTABLE);
         }
 
-        if (varType.getKind() == TypeKind.ARRAY && valueType.getKind() == TypeKind.ARRAY) {
+        if (varCopy.getKind() == TypeKind.ARRAY && valueType.getKind() == TypeKind.ARRAY) {
             AnnotatedTypeMirror.AnnotatedArrayType varArrayType = (AnnotatedTypeMirror.AnnotatedArrayType) varType;
             AnnotatedTypeMirror.AnnotatedArrayType valueArrayType = (AnnotatedTypeMirror.AnnotatedArrayType) valueType;
 
             commonAssignmentCheck(varArrayType.getComponentType(), valueArrayType.getComponentType(),
                     valueTree, errorKey, p);
         }
+
+        super.commonAssignmentCheck(varCopy, valueType, valueTree, errorKey, p);
     }
 
     @Override
@@ -186,14 +201,45 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         }
 
 
-        if (!TreeUtils.isSelfAccess(node)
-                || (receiver != null && !receiver.hasAnnotation(checker.THIS))) {
+        if ((!TreeUtils.isSelfAccess(node)
+                || (receiver != null && !receiver.hasAnnotation(checker.THIS)))
+                && !(receiver != null && receiver.hasAnnotation(checker.REP))) {
             /* Check that @Rep objects are not passed to foreign methods */
             checkArgumentsRep(node.getArguments());
         }
 
+        state.setInvocationReceiver(receiver); /* Pass additional info to checkArguments */
         return super.visitMethodInvocation(node, p);
     }
+
+    /**
+     * Refine the required arguments based on the ownership of the current method receiver,
+     * stored in the VisitorState
+     *
+     * @param requiredArgs
+     * @param passedArgs
+     * @param p
+     */
+    @Override
+    protected void checkArguments(List<? extends AnnotatedTypeMirror> requiredArgs, List<? extends ExpressionTree> passedArgs, Void p) {
+        List<AnnotatedTypeMirror> refinedRequiredArgs = new LinkedList<AnnotatedTypeMirror>();
+        for (AnnotatedTypeMirror arg : requiredArgs) {
+            AnnotatedTypeMirror refined = annoTypes.deepCopy(arg);
+            if (refined.hasAnnotation(checker.PEER)) {
+                if (state.isReceiver(checker.REP)) {
+                    refined.removeAnnotation(checker.PEER);
+                    refined.addAnnotation(checker.REP);
+                } else if (!(state.isReceiver(checker.PEER))) {
+                    refined.removeAnnotation(checker.PEER);
+                    refined.addAnnotation(checker.WORLD);
+                }
+            }
+            refinedRequiredArgs.add(refined);
+        }
+        super.checkArguments(refinedRequiredArgs, passedArgs, p);
+    }
+
+
 
     @Override
     public Void visitReturn(ReturnTree node, Void p) {

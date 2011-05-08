@@ -42,6 +42,11 @@ public class JimuvaVisitorState {
      */
     protected Map<Element, AssignmentTree> thisReferences;
 
+    /* The type for the receiver of the current MethodInvocation.
+     * Needed to infer type of paramaters in JimuvaVisitor.
+     */
+    protected AnnotatedTypeMirror invocationReceiver;
+
     /* Map of implicit annotations that the Factory put on methods */
     protected Map<ExecutableElement, AnnotationMirror> implicitAnnotations;
 
@@ -142,5 +147,13 @@ public class JimuvaVisitorState {
 
     public AnnotationMirror getImplicitAnnotation(ExecutableElement el) {
         return implicitAnnotations.get(el);
+    }
+
+    public void setInvocationReceiver(AnnotatedTypeMirror invocationReceiver) {
+        this.invocationReceiver = invocationReceiver;
+    }
+
+    public Boolean isReceiver(AnnotationMirror m) {
+        return invocationReceiver == null ? false : invocationReceiver.hasAnnotation(m);
     }
 }

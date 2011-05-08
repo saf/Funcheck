@@ -2,21 +2,13 @@ package checkers.fun.jimuva;
 
 import checkers.basetype.BaseTypeChecker;
 import checkers.basetype.BaseTypeVisitor;
-import checkers.fun.quals.Anonymous;
-import checkers.fun.quals.Immutable;
-import checkers.fun.quals.ImmutableClass;
-import checkers.fun.quals.MaybeThis;
-import checkers.fun.quals.Mutable;
-import checkers.fun.quals.MutableClass;
-import checkers.fun.quals.NotThis;
-import checkers.fun.quals.ReadOnly;
-import checkers.fun.quals.ReadWrite;
-import checkers.fun.quals.Rep;
-import checkers.fun.quals.This;
-import checkers.fun.quals.WriteLocal;
+import checkers.fun.quals.*;
 import checkers.quals.TypeQualifiers;
 import checkers.types.AnnotatedTypeFactory;
+import checkers.types.AnnotatedTypeMirror;
+import checkers.types.AnnotatedTypeMirror.AnnotatedNullType;
 import checkers.types.QualifierHierarchy;
+import checkers.types.TypeHierarchy;
 import checkers.util.AnnotationUtils;
 import checkers.util.GraphQualifierHierarchy;
 import com.sun.source.tree.CompilationUnitTree;
@@ -39,7 +31,7 @@ import javax.tools.Diagnostic.Kind;
     /* Method & constructor qualifiers */
     ReadOnly.class, ReadWrite.class, WriteLocal.class, Anonymous.class,
     /* Field qualifiers */
-    Rep.class,
+    Rep.class, Peer.class, World.class,
     /* Annotation for tracking references to this */
     This.class, NotThis.class, MaybeThis.class
 })
@@ -48,7 +40,7 @@ public class JimuvaChecker extends BaseTypeChecker {
     protected AnnotationUtils annotationFactory;
     protected JimuvaVisitorState state;
 
-    public AnnotationMirror IMMUTABLE, MUTABLE, READONLY, REP, 
+    public AnnotationMirror IMMUTABLE, MUTABLE, READONLY, REP, PEER, WORLD, 
             ANONYMOUS, IMMUTABLE_CLASS,
             THIS, NOT_THIS, MAYBE_THIS;
 
@@ -59,6 +51,8 @@ public class JimuvaChecker extends BaseTypeChecker {
         MUTABLE    = annotationFactory.fromClass(Mutable.class);
         READONLY   = annotationFactory.fromClass(ReadOnly.class);
         REP        = annotationFactory.fromClass(Rep.class);
+        PEER       = annotationFactory.fromClass(Peer.class);
+        WORLD      = annotationFactory.fromClass(World.class);
         ANONYMOUS  = annotationFactory.fromClass(Anonymous.class);
         IMMUTABLE_CLASS = annotationFactory.fromClass(ImmutableClass.class);
         THIS       = annotationFactory.fromClass(This.class);
@@ -138,6 +132,21 @@ public class JimuvaChecker extends BaseTypeChecker {
             }
             return unmatched.isEmpty();
         }
+    }
+
+    /**
+     * An AnnotatedNullTypeMirror may be a subtype of anything.
+     * @param rhs the potential subtype
+     * @param lhs the supertype
+     * @return
+     */
+    @Override
+    public boolean isSubtype(AnnotatedTypeMirror rhs, AnnotatedTypeMirror lhs) {
+            if (rhs instanceof AnnotatedNullType) {
+                return true;
+            } else {
+                return super.isSubtype(rhs, lhs);
+            }
     }
 
     @Override
