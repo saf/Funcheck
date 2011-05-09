@@ -114,30 +114,6 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
         AnnotatedTypeMirror varCopy = annoTypes.deepCopy(varType);
 
-        /* An object cannot lose or gain the @Rep annotation */
-        if (varCopy.hasAnnotation(checker.REP)
-                && !valueType.hasAnnotation(checker.REP)
-                && !(valueType instanceof AnnotatedTypeMirror.AnnotatedNullType)) {
-            checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
-        } else if (!varType.hasAnnotation(checker.REP)
-                && valueType.hasAnnotation(checker.REP)) {
-            checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
-        } else {
-            varCopy.removeAnnotation(checker.REP);
-        }
-
-        /* An object cannot lose or gain the @Peer annotation */
-        if (varCopy.hasAnnotation(checker.PEER)
-                && !valueType.hasAnnotation(checker.PEER)
-                && !(valueType instanceof AnnotatedTypeMirror.AnnotatedNullType)) {
-            checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
-        } else if (!varCopy.hasAnnotation(checker.PEER)
-                && valueType.hasAnnotation(checker.PEER)) {
-            checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
-        } else {
-            varCopy.removeAnnotation(checker.REP);
-        }
-
         /* An object cannot lose or gain the @Immutable annotation */
         if (varCopy.hasAnnotation(checker.MUTABLE)
                 && valueType.hasAnnotation(checker.IMMUTABLE)) {
