@@ -25,6 +25,7 @@ import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import java.io.IOException;
+import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import javax.lang.model.element.Element;
@@ -58,6 +59,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
     @Override
     public Void visitAssignment(AssignmentTree node, Void p) {
         ExpressionTree varTree = node.getVariable();
+        ExpressionTree valueTree = node.getExpression();
+        AnnotatedTypeMirror valueType = atypeFactory.getAnnotatedType(valueTree);
 
         AnnotatedTypeMirror receiver = atypeFactory.getReceiver(varTree);
         Element varElement = InternalUtils.symbol(varTree);
@@ -82,6 +85,12 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
         if (state.isCurrentMethod(checker.ANONYMOUS)) {
             checkAssignmentAnonymous(node);
+        }
+
+        /* Cannot create static aliases to @Safe values */
+        if (varElement.getKind() == ElementKind.FIELD && valueType.hasAnnotation(checker.SAFE)) {
+            checker.report(Result.failure("static.alias.to.safe",
+                    varElement.toString(), valueTree.toString()), node);
         }
 
         return super.visitAssignment(node, p);
@@ -181,7 +190,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 || (receiver != null && !receiver.hasAnnotation(checker.THIS)))
                 && !(receiver != null && receiver.hasAnnotation(checker.REP))) {
             /* Check that @Rep objects are not passed to foreign methods */
-            checkArgumentsRep(node.getArguments());
+            checkArgumentsRep(node.getArguments(), calledMethod.getParameterTypes());
         }
 
         state.setInvocationReceiver(receiver); /* Pass additional info to checkArguments */
@@ -298,7 +307,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             /* Do not pass this to foreign constructors. */
             checkArgumentsAnonymous(node.getArguments());
         }
-        checkArgumentsRep(node.getArguments());
+        AnnotatedExecutableType con = atypeFactory.getAnnotatedType(TreeUtils.elementFromUse(node));
+        checkArgumentsRep(node.getArguments(), con.getParameterTypes());
         checkNewReferenceType(node.getIdentifier());
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node.getIdentifier());
         AnnotatedExecutableType constructor = atypeFactory.constructorFromUse(node);
@@ -503,11 +513,17 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
      *
      * @param args The list of arguments to be checked.
      */
-    protected void checkArgumentsRep(List<? extends ExpressionTree> args) {
-        for (ExpressionTree arg : args) {
-            AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(arg);
-            if (type.hasAnnotation(checker.REP)) {
-                checker.report(Result.failure("passing.rep.to.foreign.method", arg.toString()), arg);
+    protected void checkArgumentsRep(List<? extends ExpressionTree> args, List<AnnotatedTypeMirror> params) {
+        Iterator<? extends ExpressionTree> ait = args.iterator();
+        Iterator<AnnotatedTypeMirror> pit = params.iterator();
+
+        Boolean safe = false;
+        while (ait.hasNext()) {
+            safe = pit.hasNext() ? pit.next().hasAnnotation(checker.SAFE) : safe; /* VarArgs possible */
+            ExpressionTree a = ait.next();
+            AnnotatedTypeMirror at = atypeFactory.getAnnotatedType(a);
+            if (at.hasAnnotation(checker.REP) && !safe) {
+                checker.report(Result.failure("passing.rep.to.foreign.method", a.toString()), a);
             }
         }
     }

@@ -129,6 +129,13 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                     || elt.getKind() == ElementKind.LOCAL_VARIABLE)) {
             type.addAnnotation(checker.WORLD);
         }
+
+        /* @Safe elements may ignore ownership annotations */
+        if (type.hasAnnotation(checker.SAFE)) {
+            type.removeAnnotation(checker.REP);
+            type.removeAnnotation(checker.PEER);
+            type.removeAnnotation(checker.WORLD);
+        }
         //System.err.println("Type of " + elt.toString() + " is " + type.toString());
         return type;
     }
@@ -249,6 +256,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         flowQuals.add(checker.THIS);
         flowQuals.add(checker.NOT_THIS);
         flowQuals.add(checker.MAYBE_THIS);
+        flowQuals.add(checker.SAFE);
         return flowQuals;
     }
 
