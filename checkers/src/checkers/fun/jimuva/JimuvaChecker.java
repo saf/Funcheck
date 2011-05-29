@@ -31,7 +31,7 @@ import javax.tools.Diagnostic.Kind;
     /* Method & constructor qualifiers */
     ReadOnly.class, ReadWrite.class, WriteLocal.class, Anonymous.class,
     /* Field qualifiers */
-    Rep.class, Peer.class, World.class,
+    Rep.class, Peer.class, World.class, OwnedBy.class,
     /* Annotations for tracking references to this */
     This.class, NotThis.class, MaybeThis.class,
     /* Annotations for safe parameters */
@@ -42,7 +42,7 @@ public class JimuvaChecker extends BaseTypeChecker {
     protected AnnotationUtils annotationFactory;
     protected JimuvaVisitorState state;
 
-    public AnnotationMirror IMMUTABLE, MUTABLE, READONLY, REP, PEER, WORLD, 
+    public AnnotationMirror IMMUTABLE, MUTABLE, READONLY, REP, PEER, WORLD, OWNEDBY,
             ANONYMOUS, IMMUTABLE_CLASS,
             THIS, NOT_THIS, MAYBE_THIS,
             SAFE;
@@ -56,6 +56,7 @@ public class JimuvaChecker extends BaseTypeChecker {
         REP        = annotationFactory.fromClass(Rep.class);
         PEER       = annotationFactory.fromClass(Peer.class);
         WORLD      = annotationFactory.fromClass(World.class);
+        OWNEDBY    = annotationFactory.fromClass(OwnedBy.class);
         ANONYMOUS  = annotationFactory.fromClass(Anonymous.class);
         IMMUTABLE_CLASS = annotationFactory.fromClass(ImmutableClass.class);
         THIS       = annotationFactory.fromClass(This.class);

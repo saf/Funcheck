@@ -124,7 +124,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         if (elt.getKind() == ElementKind.PARAMETER) {
             type.addAnnotation(checker.NOT_THIS);
         }
-        if (!type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER)
+        if (!type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER) && !type.hasAnnotation(checker.OWNEDBY)
                 && (elt.getKind() == ElementKind.FIELD || elt.getKind() == ElementKind.PARAMETER
                     || elt.getKind() == ElementKind.LOCAL_VARIABLE)) {
             type.addAnnotation(checker.WORLD);
@@ -135,6 +135,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             type.removeAnnotation(checker.REP);
             type.removeAnnotation(checker.PEER);
             type.removeAnnotation(checker.WORLD);
+            type.removeAnnotation(checker.OWNEDBY);
         }
         //System.err.println("Type of " + elt.toString() + " is " + type.toString());
         return type;
