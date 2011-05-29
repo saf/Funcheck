@@ -193,6 +193,12 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             checkArgumentsRep(node.getArguments(), calledMethod.getParameterTypes());
         }
 
+        if (receiver != null && receiver.hasAnnotation(checker.SAFE)
+                && calledMethodReceiver != null && !calledMethodReceiver.hasAnnotation(checker.SAFE)) {
+            checker.report(Result.failure("unsafe.call.on.safe.value", receiver), node);
+        }
+        checkArgumentsSafe(node.getArguments(), calledMethod.getParameterTypes());
+
         state.setInvocationReceiver(receiver); /* Pass additional info to checkArguments */
         return super.visitMethodInvocation(node, p);
     }
@@ -524,6 +530,24 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             AnnotatedTypeMirror at = atypeFactory.getAnnotatedType(a);
             if (at.hasAnnotation(checker.REP) && !safe) {
                 checker.report(Result.failure("passing.rep.to.foreign.method", a.toString()), a);
+            }
+        }
+    }
+
+    /**
+     * Check that @Safe values are not passed as unsafe parameters
+     */
+    protected void checkArgumentsSafe(List<? extends ExpressionTree> args, List<AnnotatedTypeMirror> params) {
+        Iterator<? extends ExpressionTree> ait = args.iterator();
+        Iterator<AnnotatedTypeMirror> pit = params.iterator();
+
+        Boolean safe = false;
+        while (ait.hasNext()) {
+            safe = pit.hasNext() ? pit.next().hasAnnotation(checker.SAFE) : safe;
+            ExpressionTree a = ait.next();
+            AnnotatedTypeMirror at = atypeFactory.getAnnotatedType(a);
+            if (at.hasAnnotation(checker.SAFE) && !safe) {
+                checker.report(Result.failure("passing.safe.to.unsafe.parameter", a.toString()), a);
             }
         }
     }
