@@ -15,6 +15,7 @@ import java.util.Map;
 import java.util.Stack;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
+import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
 
 /**
@@ -147,6 +148,10 @@ public class JimuvaVisitorState {
 
     public AnnotationMirror getImplicitAnnotation(ExecutableElement el) {
         return implicitAnnotations.get(el);
+    }
+
+    public Boolean inConstructor() {
+        return currentMethod.getElement().getKind().equals(ElementKind.CONSTRUCTOR);
     }
 
     public void setInvocationReceiver(AnnotatedTypeMirror invocationReceiver) {
