@@ -33,6 +33,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
 
@@ -72,7 +73,12 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                     type.addAnnotation(checker.MAYBE_THIS);
                 }
             } else {
-                /* #TODO Is this valid? */
+                /* Calling method on a non-this value or a static method.
+                 *
+                 * The result will not be THIS, provided we did not
+                 * call a non-@Anonymous method before or otherwise passed a
+                 * reference to 'this' to another object.
+                 */
                 type.addAnnotation(checker.NOT_THIS);
             }
 
@@ -122,7 +128,11 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
     public AnnotatedTypeMirror getAnnotatedType(Element elt) {
         AnnotatedTypeMirror type = super.getAnnotatedType(elt);
         if (elt.getKind() == ElementKind.PARAMETER) {
-            type.addAnnotation(checker.NOT_THIS);
+            if (state.inConstructor()) {
+                type.addAnnotation(checker.NOT_THIS);
+            } else {
+                type.addAnnotation(checker.MAYBE_THIS);
+            }
         }
         if (!type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER) && !type.hasAnnotation(checker.OWNEDBY)
                 && (elt.getKind() == ElementKind.FIELD || elt.getKind() == ElementKind.PARAMETER
