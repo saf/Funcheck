@@ -6,7 +6,10 @@
 package checkers.fun.quals;
 
 import checkers.quals.SubtypeOf;
+import checkers.quals.TypeQualifier;
 import java.lang.annotation.Documented;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
 
 /**
  *
@@ -14,6 +17,8 @@ import java.lang.annotation.Documented;
  */
 @Documented
 @SubtypeOf({})
+@TypeQualifier
+@Retention(RetentionPolicy.CLASS)
 public @interface OwnedBy {
-    public String value = "world";
+    String value();
 }

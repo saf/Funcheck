@@ -118,7 +118,8 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
 
         /* Implicit @World on new etc. */
         if (tree instanceof ExpressionTree &&
-                !type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER)) {
+                !type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER)
+                && !type.hasAnnotation(checker.OWNEDBY)) {
             type.addAnnotation(checker.WORLD);
         }
         return type;

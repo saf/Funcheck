@@ -3,11 +3,13 @@ package checkers.fun.jimuva;
 import checkers.basetype.BaseTypeVisitor;
 import checkers.fun.quals.Anonymous;
 import checkers.fun.quals.ImmutableClass;
+import checkers.fun.quals.OwnedBy;
 import checkers.source.Result;
 import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import checkers.types.AnnotatedTypeMirror.AnnotatedExecutableType;
 import checkers.util.AnnotationUtils;
+import checkers.util.ElementUtils;
 import checkers.util.InternalUtils;
 import checkers.util.TreeUtils;
 import com.sun.source.tree.ArrayAccessTree;
@@ -25,9 +27,12 @@ import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.Arrays;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -45,7 +50,6 @@ import javax.lang.model.type.TypeMirror;
 public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
     protected JimuvaChecker checker;
-
     protected JimuvaAnnotatedTypeFactory atypeFactory;
     protected JimuvaVisitorState state;
 
@@ -68,14 +72,14 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 && varElement.getKind().isField()
                 && receiver.getKind() != TypeKind.ARRAY) {
             if (TreeUtils.isSelfAccess(varTree) && varElement.getKind() == ElementKind.FIELD) {
-                checker.report(Result.failure("assign.readonly.receiver.field", 
+                checker.report(Result.failure("assign.readonly.receiver.field",
                         varTree.toString(), state.getCurrentMethodName()), node);
                 if (state.inImplicitlyAnnotatedMethod()) {
                     checker.note(null, "readonly.implicit",
                             state.getCurrentMethodName(), state.getCurrentClassName());
                 }
             } else {
-                checker.report(Result.failure("assign.immutable.field", 
+                checker.report(Result.failure("assign.immutable.field",
                         varTree.toString(), receiver.getElement().toString()), node);
             }
         }
@@ -113,6 +117,11 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             checker.report(Result.failure("public.field.of.immutable.class",
                     el.getSimpleName(), state.getCurrentClassName()), el);
         }
+
+        if (type.hasAnnotation(checker.OWNEDBY)) {
+            (new Owner(node, el)).check();
+        }
+
         return super.visitVariable(node, p);
     }
 
@@ -230,8 +239,6 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         super.checkArguments(refinedRequiredArgs, passedArgs, p);
     }
 
-
-
     @Override
     public Void visitReturn(ReturnTree node, Void p) {
         if (state.isCurrentMethod(checker.ANONYMOUS)
@@ -292,7 +299,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         TypeMirror superclass = typeElement.getSuperclass();
         if (superclass.getKind() == TypeKind.NONE) {
             /* The constructor is Object.<init>(). It does nothing, so we
-               assume that it is anonymous. */
+            assume that it is anonymous. */
             return true;
         } else if (superclass.getKind() == TypeKind.DECLARED) {
             Element superclassElement = ((DeclaredType) superclass).asElement();
@@ -318,7 +325,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         checkNewReferenceType(node.getIdentifier());
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node.getIdentifier());
         AnnotatedExecutableType constructor = atypeFactory.constructorFromUse(node);
-        if (type.hasAnnotation(checker.IMMUTABLE) 
+        if (type.hasAnnotation(checker.IMMUTABLE)
                 && constructor.getAnnotation(Anonymous.class) == null) {
             checker.report(Result.warning("immutable.untrusted.constructor"), node);
         }
@@ -333,7 +340,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
      */
     protected void checkNewReferenceType(Tree tree) {
         AnnotatedTypeMirror type = atypeFactory.fromTypeTree(tree);
-        
+
         if (type.getKind() == TypeKind.DECLARED) {
             AnnotatedDeclaredType declaredType = (AnnotatedDeclaredType) type;
             Element typeElement = declaredType.getUnderlyingType().asElement();
@@ -365,7 +372,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             /* Allow for @ReadOnly calls on @Mutable references. */
             mcp.getReceiverType().removeAnnotation(checker.IMMUTABLE);
             mcp.getReceiverType().addAnnotation(checker.MUTABLE);
-        } else if (treeReceiver.hasAnnotation(checker.IMMUTABLE) 
+        } else if (treeReceiver.hasAnnotation(checker.IMMUTABLE)
                 && methodReceiver.hasAnnotation(checker.MUTABLE)) {
             /* Disallow non-@Readonly calls on @Immutable */
             checker.report(Result.failure("immutable.calls.nonreadonly", mcp.getElement().toString(),
@@ -471,13 +478,13 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         /* Check that non-@Anonymous methods are not called on [this] */
         AnnotatedExecutableType method = atypeFactory.methodFromUse(node);
         if (!method.hasAnnotation(checker.ANONYMOUS)
-                    && !isBaseConstructorCall(node)) {
+                && !isBaseConstructorCall(node)) {
             if (TreeUtils.isSelfAccess(node)) {
-                checker.report(Result.failure("anonymous.calls.non.anonymous", 
+                checker.report(Result.failure("anonymous.calls.non.anonymous",
                         method.getElement().getSimpleName().toString(),
                         state.getCurrentMethodName()), node);
                 if (state.inImplicitlyAnnotatedMethod()) {
-                    checker.note(null, "anonymous.implicit", 
+                    checker.note(null, "anonymous.implicit",
                             state.getCurrentMethodName(), state.getCurrentClassName());
                 }
             } else {
@@ -569,34 +576,48 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
     }
 
     public enum ThisReferenceSource {
+
         THIS_LITERAL {
-            public void print(JimuvaChecker ch) {}
+
+            public void print(JimuvaChecker ch) {
+            }
         },
         ALIAS {
+
             public void print(JimuvaChecker ch) {
                 ch.note(location, "this.ref.alias", aliasName);
             }
         },
         NONANONYMOUS_ON_THIS {
+
             public void print(JimuvaChecker ch) {
                 ch.note(null, "this.ref.nonanonymous.on.this", methodName);
             }
         },
         NONANONYMOUS_ON_ALIAS {
+
             public void print(JimuvaChecker ch) {
                 ch.note(null, "this.ref.nonanonymous.on.alias", methodName, aliasName);
                 innerReferenceSource.print(ch);
             }
         };
-
         String aliasName;
         String methodName;
         ThisReferenceSource innerReferenceSource;
         Tree location;
 
-        public void setLocation(Tree t) { this.location = t; }
-        public void setAliasName(String s) { this.aliasName = s; }
-        public void setMethodName(String s) { this.methodName = s; }
+        public void setLocation(Tree t) {
+            this.location = t;
+        }
+
+        public void setAliasName(String s) {
+            this.aliasName = s;
+        }
+
+        public void setMethodName(String s) {
+            this.methodName = s;
+        }
+
         public void setInnerReferenceSource(ThisReferenceSource innerReferenceSource) {
             this.innerReferenceSource = innerReferenceSource;
         }
@@ -607,5 +628,161 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
     protected Boolean mayBeThis(ExpressionTree node) {
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node);
         return type.hasAnnotation(checker.THIS) || type.hasAnnotation(checker.MAYBE_THIS);
+    }
+
+    /** 
+     * Represents information on an object's owner, based on the @OwnedBy annotation.
+     */
+    public class Owner {
+
+        Boolean valid;
+        Element element;
+        Tree node;
+        String qualifiedClassName;
+        Boolean foreignClass;
+        List<String> path;
+
+        public Owner(Tree node, Element el) {
+            this.node = node;
+            this.element = el;
+            AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node);
+            
+            if (type.hasAnnotation(checker.OWNEDBY)) {
+                List<String> parts = Arrays.asList(getOwner(type).split("\\."));
+                System.err.println("String " + getOwner(type) + " parts " + parts.toString());
+
+                StringBuilder qualifiedClassNameBuilder = new StringBuilder();
+                List<String> memberSelect = new LinkedList<String>();
+                Boolean classSelected = false;
+                Boolean firstElement = true;
+
+                for (String p : parts) {
+                    if (isValidName(p)) {
+                        if (isCapitalized(p)) {
+                            if (classSelected) {
+                                memberSelect.add(p);
+                            } else {
+                                classSelected = true;
+                                memberSelect.clear();
+                                qualifiedClassNameBuilder.append((firstElement ? "" : ".") + p);
+                            }
+                        } else {
+                            if (classSelected) {
+                                memberSelect.add(p);
+                            } else {
+                                qualifiedClassNameBuilder.append((firstElement ? "" : ".") + p);
+                                memberSelect.add(p);
+                            }
+                        }
+                        firstElement = false;
+                    } else {
+                        checker.report(Result.failure("owner.invalid.identifier", p), node);
+                        break;
+                    }
+                }
+
+                qualifiedClassName = classSelected
+                        ? qualifiedClassNameBuilder.toString()
+                        : ElementUtils.enclosingClass(el).getSimpleName().toString();
+                foreignClass = classSelected;
+                valid = true;
+            } else {
+                valid = false;
+            }
+        }
+
+        private Boolean isCapitalized(String s) {
+            return s.matches("^[A-Z][A-Za-z0-9]*$");
+        }
+
+        private Boolean isValidName(String s) {
+            return s.matches("^[A-Za-z][A-Za-z0-9]*$");
+        }
+
+        /**
+         * Return the value of the OwnedBy annotation on given type.
+         */
+        public String getOwner(AnnotatedTypeMirror type) {
+            if (type.hasAnnotation(checker.OWNEDBY)) {
+                AnnotationMirror m = type.getAnnotation(OwnedBy.class);
+                return AnnotationUtils.elementValue(m, "value", String.class);
+            } else {
+                return null;
+            }
+        }
+
+        public Boolean check() {
+            if (!valid) {
+                return true;
+            }
+            
+            Class encl;
+            try {
+                encl = Class.forName("checkers.fun.examples.Immutability");
+            } catch (ClassNotFoundException e) {
+                checker.report(Result.failure("owner.class.does.not.exist", qualifiedClassName), node);
+                return false;
+            }
+            return checkFields(path, encl, foreignClass);
+        }
+
+        protected Boolean checkFields(List<String> p, Class c, Boolean trailingClass) {
+
+            if (p.isEmpty()) {
+                if (trailingClass) {
+                    checker.report(Result.failure("owner.class.cannot.own"), node);
+                    return false;
+                } else {
+                    return true;
+                }
+            }
+
+            String s = p.remove(0);
+
+            if (isCapitalized(s)) {
+                if (!trailingClass) {
+                    checker.report(Result.failure("owner.instance.classes.unsupported"), node);
+                    return false;
+                } else {
+                    /* Static member class of c */
+                    Class[] memberClasses = c.getClasses();
+                    for (Class cl : memberClasses) {
+                        if (cl.getName().equals(s)) {
+                            return checkFields(p, cl, true);
+                        }
+                    }
+                    checker.report(Result.failure("owner.no.such.member.class", s, c.getName()), node);
+                    return false;
+                }
+            } else {
+                try {
+                    Field f = c.getField(s);
+                    if (trailingClass) {
+                        /* f must be static */
+                        if (!java.lang.reflect.Modifier.isStatic(f.getModifiers())) {
+                            checker.report(Result.failure("owner.nonstatic.member", s), node);
+                            return false;
+                        }
+                    }
+                    return checkFields(p, f.getType(), false);
+                } catch (NoSuchFieldException e) {
+                    checker.report(Result.failure("owner.no.such.field", s, c.getName()), node);
+                    return false;
+                } catch (SecurityException e) {
+                    return false;
+                }
+            }
+        }
+
+        protected Boolean isImmutable() {
+            Class encl;
+            try {
+                encl = Class.forName(qualifiedClassName);
+            } catch (ClassNotFoundException e) {
+                /* Irrelevant; we signalled this error before. */
+                return false;
+            }
+            return checkFields(path, encl, false);
+        }
     }
 }
