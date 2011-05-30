@@ -42,6 +42,7 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
+import javax.swing.tree.TreePath;
 
 /**
  *
@@ -118,8 +119,10 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     el.getSimpleName(), state.getCurrentClassName()), el);
         }
 
-        if (type.hasAnnotation(checker.OWNEDBY)) {
-            (new Owner(node, el)).check();
+        try {
+            new Owner(el, atypeFactory); /* Constructor performs checking */
+        } catch (Owner.OwnerDescriptionError err) {
+            checker.report(err.getResult(), node);
         }
 
         return super.visitVariable(node, p);
@@ -633,156 +636,175 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
     /** 
      * Represents information on an object's owner, based on the @OwnedBy annotation.
      */
-    public class Owner {
+    public static class Owner {
 
         Boolean valid;
         Element element;
-        Tree node;
-        String qualifiedClassName;
-        Boolean foreignClass;
         List<String> path;
+        JimuvaAnnotatedTypeFactory af;
 
-        public Owner(Tree node, Element el) {
-            this.node = node;
-            this.element = el;
-            AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node);
-            
-            if (type.hasAnnotation(checker.OWNEDBY)) {
-                List<String> parts = Arrays.asList(getOwner(type).split("\\."));
-                System.err.println("String " + getOwner(type) + " parts " + parts.toString());
+        public class OwnerDescriptionError extends RuntimeException {
 
-                StringBuilder qualifiedClassNameBuilder = new StringBuilder();
-                List<String> memberSelect = new LinkedList<String>();
-                Boolean classSelected = false;
-                Boolean firstElement = true;
+            Result result;
+
+            public OwnerDescriptionError(Result r) {
+                super();
+                result = r;
+            }
+
+            public Result getResult() {
+                return result;
+            }
+        }
+
+        public Owner(Element elt, JimuvaAnnotatedTypeFactory af) throws OwnerDescriptionError {
+            this.af = af;
+            this.element = elt;
+
+            path = new LinkedList<String>();
+            String owner = getOwner(element);
+
+            if (owner != null) {
+                List<String> parts = Arrays.asList(owner.split("\\."));
 
                 for (String p : parts) {
                     if (isValidName(p)) {
-                        if (isCapitalized(p)) {
-                            if (classSelected) {
-                                memberSelect.add(p);
-                            } else {
-                                classSelected = true;
-                                memberSelect.clear();
-                                qualifiedClassNameBuilder.append((firstElement ? "" : ".") + p);
-                            }
-                        } else {
-                            if (classSelected) {
-                                memberSelect.add(p);
-                            } else {
-                                qualifiedClassNameBuilder.append((firstElement ? "" : ".") + p);
-                                memberSelect.add(p);
-                            }
-                        }
-                        firstElement = false;
+                        path.add(p);
                     } else {
-                        checker.report(Result.failure("owner.invalid.identifier", p), node);
-                        break;
+                        throw new OwnerDescriptionError(Result.failure("owner.invalid.identifier", p));
                     }
                 }
-
-                qualifiedClassName = classSelected
-                        ? qualifiedClassNameBuilder.toString()
-                        : ElementUtils.enclosingClass(el).getSimpleName().toString();
-                foreignClass = classSelected;
                 valid = true;
+                /* Check for errors in owner description */
+                isImmutable();
             } else {
                 valid = false;
             }
         }
 
         private Boolean isCapitalized(String s) {
-            return s.matches("^[A-Z][A-Za-z0-9]*$");
+            return s.matches("^[A-Z][A-Za-z0-9_]*$");
         }
 
         private Boolean isValidName(String s) {
-            return s.matches("^[A-Za-z][A-Za-z0-9]*$");
+            return s.matches("^[A-Za-z][A-Za-z0-9_]*$");
         }
 
         /**
          * Return the value of the OwnedBy annotation on given type.
          */
-        public String getOwner(AnnotatedTypeMirror type) {
-            if (type.hasAnnotation(checker.OWNEDBY)) {
-                AnnotationMirror m = type.getAnnotation(OwnedBy.class);
-                return AnnotationUtils.elementValue(m, "value", String.class);
+        public String getOwner(Element el) {
+            List<? extends AnnotationMirror> mirrors = el.getAnnotationMirrors();
+            for (AnnotationMirror m : mirrors) {
+                if ("OwnedBy".equals(m.getAnnotationType().asElement().getSimpleName().toString())) {
+                    return AnnotationUtils.elementValue(m, "value", String.class);
+                }
+            }
+            return null;
+        }
+
+        protected AnnotatedTypeMirror findMember(TypeElement t, String f,
+                Boolean mustBeStatic, Boolean mustBePublic) {
+            for (Element e : t.getEnclosedElements()) {
+                if (e.getSimpleName().toString().equals(f)) {
+                    if (mustBeStatic && !e.getModifiers().contains(Modifier.STATIC)) {
+                        throw new OwnerDescriptionError(Result.failure("owner.nonstatic.member", f));
+                    } else if (mustBePublic && !e.getModifiers().contains(Modifier.PUBLIC)) {
+                        throw new OwnerDescriptionError(Result.failure("owner.nonpublic.member", f));
+                    } else {
+                        return af.getAnnotatedType(e);
+                    }
+                }
+            }
+            TypeMirror s = t.getSuperclass();
+            if (s.getKind() == TypeKind.NONE) {
+                return null; /* Top of hierarchy, nothing found */
+            } else if (s.getKind() == TypeKind.DECLARED) {
+                Element superclassElement = ((DeclaredType) s).asElement();
+                return findMember(((TypeElement) superclassElement), f, mustBeStatic, mustBePublic);
             } else {
-                return null;
+                throw new IllegalStateException("Superclass is not a class");
             }
         }
 
-        public Boolean check() {
+        protected AnnotatedTypeMirror getPath(List<String> p, TypeMirror t, Boolean insideClass) {
+            /* Assuming p is not empty! */
+
+            String f = p.remove(0);
+            if (t.getKind() == TypeKind.DECLARED) {
+                TypeElement te = (TypeElement) ((DeclaredType) t).asElement();
+                AnnotatedTypeMirror am = findMember(te, f, insideClass, true);
+                if (am != null) {
+                    if (p.isEmpty()) {
+                        return am;
+                    } else {
+                        return getPath(p, am.getUnderlyingType(), am.getElement().getKind() == ElementKind.CLASS);
+                    }
+                } else {
+                    throw new OwnerDescriptionError(Result.failure("owner.no.such.field", f, am.getUnderlyingType().toString()));
+                }
+            } else if (t.getKind() == TypeKind.WILDCARD || t.getKind() == TypeKind.TYPEVAR) {
+                throw new OwnerDescriptionError(Result.failure("owner.peeking.unsupported"));
+            } else {
+                throw new OwnerDescriptionError(Result.failure("owner.simple.type"));
+            }
+        }
+
+        public Boolean isImmutable() throws OwnerDescriptionError {
             if (!valid) {
-                return true;
-            }
-            
-            Class encl;
-            try {
-                encl = Class.forName("checkers.fun.examples.Immutability");
-            } catch (ClassNotFoundException e) {
-                checker.report(Result.failure("owner.class.does.not.exist", qualifiedClassName), node);
                 return false;
             }
-            return checkFields(path, encl, foreignClass);
-        }
 
-        protected Boolean checkFields(List<String> p, Class c, Boolean trailingClass) {
+            Element enclosing = element.getKind() == ElementKind.PARAMETER
+                    ? ElementUtils.enclosingClass(element)
+                    : element.getEnclosingElement();
 
-            if (p.isEmpty()) {
-                if (trailingClass) {
-                    checker.report(Result.failure("owner.class.cannot.own"), node);
-                    return false;
-                } else {
-                    return true;
-                }
-            }
+            List<String> rest = new LinkedList<String>(path);
+            String base = rest.remove(0);
 
-            String s = p.remove(0);
-
-            if (isCapitalized(s)) {
-                if (!trailingClass) {
-                    checker.report(Result.failure("owner.instance.classes.unsupported"), node);
-                    return false;
-                } else {
-                    /* Static member class of c */
-                    Class[] memberClasses = c.getClasses();
-                    for (Class cl : memberClasses) {
-                        if (cl.getName().equals(s)) {
-                            return checkFields(p, cl, true);
+            do {
+                /*
+                 * Traverse elements enclosing [element] to find one that
+                 * contains the field f accessible from [element]
+                 */
+                if (enclosing.getKind() == ElementKind.METHOD) {
+                    ExecutableElement m = (ExecutableElement) enclosing;
+                    for (VariableElement v : m.getParameters()) {
+                        if (v.getSimpleName().toString().equals(base)) {
+                            AnnotatedTypeMirror am;
+                            if (rest.isEmpty()) {
+                                am = af.getAnnotatedType(v);
+                            } else {
+                                am = getPath(rest, v.asType(), false);
+                            }
+                            return am.hasAnnotation(af.checker.IMMUTABLE);
                         }
                     }
-                    checker.report(Result.failure("owner.no.such.member.class", s, c.getName()), node);
-                    return false;
-                }
-            } else {
-                try {
-                    Field f = c.getField(s);
-                    if (trailingClass) {
-                        /* f must be static */
-                        if (!java.lang.reflect.Modifier.isStatic(f.getModifiers())) {
-                            checker.report(Result.failure("owner.nonstatic.member", s), node);
-                            return false;
+                } else if (enclosing.getKind() == ElementKind.CLASS) {
+                    TypeElement t = (TypeElement) enclosing;
+                    AnnotatedTypeMirror ft = findMember(t, base, false, false);
+                    if (ft != null) {
+                        AnnotatedTypeMirror am;
+                        if (ft.getElement().getKind() == ElementKind.CLASS) {
+                            if (rest.isEmpty()) {
+                                throw new OwnerDescriptionError(Result.failure("owner.class.cannot.own"));
+                            } else {
+                                am = getPath(rest, ft.getElement().asType(), true);
+                            }
+                        } else {
+                            if (rest.isEmpty()) {
+                                am = ft;
+                            } else {
+                                am = getPath(rest, ft.getUnderlyingType(), false);
+                            }
                         }
+                        return am.hasAnnotation(af.checker.IMMUTABLE);
                     }
-                    return checkFields(p, f.getType(), false);
-                } catch (NoSuchFieldException e) {
-                    checker.report(Result.failure("owner.no.such.field", s, c.getName()), node);
-                    return false;
-                } catch (SecurityException e) {
-                    return false;
                 }
-            }
-        }
+                enclosing = enclosing.getEnclosingElement();
+            } while (enclosing.getKind() != ElementKind.PACKAGE);
 
-        protected Boolean isImmutable() {
-            Class encl;
-            try {
-                encl = Class.forName(qualifiedClassName);
-            } catch (ClassNotFoundException e) {
-                /* Irrelevant; we signalled this error before. */
-                return false;
-            }
-            return checkFields(path, encl, false);
+            throw new OwnerDescriptionError(Result.failure("owner.no.such.field", base, element.toString()));
         }
     }
 }

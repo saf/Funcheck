@@ -122,6 +122,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 && !type.hasAnnotation(checker.OWNEDBY)) {
             type.addAnnotation(checker.WORLD);
         }
+        
         return type;
     }
 
@@ -148,7 +149,19 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             type.removeAnnotation(checker.WORLD);
             type.removeAnnotation(checker.OWNEDBY);
         }
-        //System.err.println("Type of " + elt.toString() + " is " + type.toString());
+
+        /* Add implicit @Immutable to objects @OwnedBy @Immutable objects. */
+        if (type.hasAnnotation(checker.OWNEDBY)) {
+            try {
+                JimuvaVisitor.Owner owner = new JimuvaVisitor.Owner(elt, this);
+                if (owner.isImmutable()) {
+                    type.addAnnotation(checker.IMMUTABLE);
+                }
+            } catch (JimuvaVisitor.Owner.OwnerDescriptionError err) {
+                /* Swallow the exception, it should have already been reported */
+            }
+        }
+        
         return type;
     }
 
