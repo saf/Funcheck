@@ -3,12 +3,10 @@ package checkers.fun.jimuva;
 import checkers.basetype.BaseTypeVisitor;
 import checkers.fun.quals.Anonymous;
 import checkers.fun.quals.ImmutableClass;
-import checkers.fun.quals.OwnedBy;
 import checkers.source.Result;
 import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import checkers.types.AnnotatedTypeMirror.AnnotatedExecutableType;
-import checkers.util.AnnotationUtils;
 import checkers.util.ElementUtils;
 import checkers.util.InternalUtils;
 import checkers.util.TreeUtils;
@@ -18,6 +16,7 @@ import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
+import com.sun.source.tree.IdentifierTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
@@ -27,12 +26,11 @@ import com.sun.source.tree.ReturnTree;
 import com.sun.source.tree.Tree;
 import com.sun.source.tree.VariableTree;
 import java.io.IOException;
-import java.lang.reflect.Field;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
-import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
@@ -42,7 +40,6 @@ import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.DeclaredType;
 import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
-import javax.swing.tree.TreePath;
 
 /**
  *
@@ -211,7 +208,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         }
         checkArgumentsSafe(node.getArguments(), calledMethod.getParameterTypes());
 
-        state.setInvocationReceiver(receiver); /* Pass additional info to checkArguments */
+        state.setCurrentInvocation(node); /* Pass additional info to checkArguments */
         return super.visitMethodInvocation(node, p);
     }
 
@@ -226,16 +223,41 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
     @Override
     protected void checkArguments(List<? extends AnnotatedTypeMirror> requiredArgs, List<? extends ExpressionTree> passedArgs, Void p) {
         List<AnnotatedTypeMirror> refinedRequiredArgs = new LinkedList<AnnotatedTypeMirror>();
+        MethodInvocationTree invocation = state.getCurrentInvocation();
         for (AnnotatedTypeMirror arg : requiredArgs) {
             AnnotatedTypeMirror refined = annoTypes.deepCopy(arg);
-            if (refined.hasAnnotation(checker.PEER)) {
+            if (refined.hasAnnotation(checker.REP)) {
+                if (!TreeUtils.isSelfAccess(invocation)) {
+                    MemberSelectTree methodSelect = (MemberSelectTree) invocation.getMethodSelect();
+                    refined.removeAnnotation(checker.REP);
+                    Owner rcv = new Owner(methodSelect.getExpression(), atypeFactory);
+                    refined.addAnnotation(atypeFactory.ownerAnnotation(rcv.asString()));
+                }
+            } else if (refined.hasAnnotation(checker.PEER)) {
                 if (state.isReceiver(checker.REP)) {
                     refined.removeAnnotation(checker.PEER);
                     refined.addAnnotation(checker.REP);
+                } else if (state.isReceiver(checker.OWNEDBY)) {
+                    Owner rcvOwner = state.getReceiverOwner();
+                    refined.removeAnnotation(checker.PEER);
+                    if (rcvOwner != null) {
+                        refined.addAnnotation(atypeFactory.ownerAnnotation(rcvOwner.asString()));
+                    } else {
+                        /* Possible on error in owner description. Do not produce spurious errors
+                           stemming from there. */
+                        refined.addAnnotation(checker.ANYOWNER); /* Suppress errors */
+                    }
                 } else if (!(state.isReceiver(checker.PEER))) {
                     refined.removeAnnotation(checker.PEER);
                     refined.addAnnotation(checker.WORLD);
                 }
+            } else if (refined.hasAnnotation(checker.OWNEDBY)
+                    && !TreeUtils.isSelfAccess(invocation)) {
+                Owner desiredOwner = new Owner(refined.getElement(), atypeFactory);
+                Owner rcv = new Owner(invocation.getMethodSelect(), atypeFactory);
+                rcv.append(desiredOwner); /* TODO is this valid? */
+                refined.removeAnnotation(checker.OWNEDBY);
+                refined.addAnnotation(atypeFactory.ownerAnnotation(rcv.asString()));
             }
             refinedRequiredArgs.add(refined);
         }
@@ -657,14 +679,21 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         }
 
         protected static class PathStep {
-            public static enum PathStepKind { CLASS, FIELD, PARAMETER }
+
+            public static enum PathStepKind {
+
+                CLASS, FIELD, PARAMETER, UNKNOWN
+            }
             public String name;
             public PathStepKind kind;
-            public AnnotatedTypeMirror type;
+            public Boolean isStatic;
+            public AnnotatedTypeMirror type; /* Null in CLASS steps */
 
-            public PathStep(String name, PathStepKind kind, AnnotatedTypeMirror type) {
+
+            public PathStep(String name, PathStepKind kind, Boolean isStatic, AnnotatedTypeMirror type) {
                 this.name = name;
                 this.kind = kind;
+                this.isStatic = isStatic;
                 this.type = type;
             }
         }
@@ -672,7 +701,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         public Owner(Element elt, JimuvaAnnotatedTypeFactory af) throws OwnerDescriptionError {
             this.af = af;
             this.element = elt;
-            String owner = getOwner(element);
+            String owner = af.getOwner(element);
             if (owner != null) {
                 path = new LinkedList<PathStep>();
                 List<String> parts = Arrays.asList(owner.split("\\."));
@@ -683,7 +712,50 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     }
                 }
                 constructPath(parts);
-            } 
+            }
+        }
+
+        /**
+         * Create Owner from a given [ExpressionTree]. We will only handle
+         * simple-formed MemberSelectTrees, which contain an IdentifierTree at the end
+         * of the chain.
+         */
+        public Owner(ExpressionTree tree, JimuvaAnnotatedTypeFactory af) {
+            this.af = af;
+            path = new LinkedList<PathStep>();
+
+            Tree t = tree;
+            while (t.getKind() == Tree.Kind.MEMBER_SELECT) {
+                MemberSelectTree mst = (MemberSelectTree) t;
+                AnnotatedTypeMirror type = af.getAnnotatedType(t);
+                path.add(new PathStep(mst.getIdentifier().toString(),
+                        type.getElement().getKind() == ElementKind.CLASS
+                        ? PathStep.PathStepKind.CLASS
+                        : PathStep.PathStepKind.FIELD,
+                        type.getElement().getModifiers().contains(Modifier.STATIC), type));
+                t = TreeUtils.skipParens(mst.getExpression());
+            }
+            if (t.getKind() == Tree.Kind.IDENTIFIER) {
+                IdentifierTree lastId = (IdentifierTree) t;
+                AnnotatedTypeMirror type = af.getAnnotatedType(t);
+                path.add(new PathStep(lastId.getName().toString(),
+                        type.getElement().getKind() == ElementKind.CLASS
+                        ? PathStep.PathStepKind.CLASS
+                        : PathStep.PathStepKind.FIELD,
+                        type.getElement().getModifiers().contains(Modifier.STATIC), type));
+            } else {
+                /* Kind of hack... If the MemberSelect is of
+                 * non-identifier-sequence form, e.g.
+                 *
+                 *    (new X()).z
+                 *
+                 * then return _ to mark ownership by an unknown object.
+                 * Naturally, the returned OwnedBy annotation will not be a subclass
+                 * of any other OwnedBy annotation.
+                 */
+                path.add(new PathStep(null, PathStep.PathStepKind.UNKNOWN, false, null));
+            }
+            Collections.reverse(path);
         }
 
         private Boolean isCapitalized(String s) {
@@ -692,19 +764,6 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
         private Boolean isValidName(String s) {
             return s.matches("^[A-Za-z][A-Za-z0-9_]*$");
-        }
-
-        /**
-         * Return the value of the OwnedBy annotation on given type.
-         */
-        public String getOwner(Element el) {
-            List<? extends AnnotationMirror> mirrors = el.getAnnotationMirrors();
-            for (AnnotationMirror m : mirrors) {
-                if ("OwnedBy".equals(m.getAnnotationType().asElement().getSimpleName().toString())) {
-                    return AnnotationUtils.elementValue(m, "value", String.class);
-                }
-            }
-            return null;
         }
 
         protected AnnotatedTypeMirror findMember(TypeElement t, String f,
@@ -740,14 +799,16 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 AnnotatedTypeMirror am = findMember(te, f, insideClass, true);
                 if (am != null) {
                     if (am.getElement().getKind() == ElementKind.CLASS) {
-                        path.add(new PathStep(f, PathStep.PathStepKind.CLASS, null));
+                        path.add(new PathStep(f, PathStep.PathStepKind.CLASS,
+                                am.getElement().getModifiers().contains(Modifier.STATIC), null));
                         if (p.isEmpty()) {
                             throw new OwnerDescriptionError(Result.failure("owner.class.cannot.own"));
                         } else {
                             addMembers(p, am.getElement().asType(), true);
                         }
                     } else {
-                        path.add(new PathStep(f, PathStep.PathStepKind.FIELD, am));
+                        path.add(new PathStep(f, PathStep.PathStepKind.FIELD,
+                                am.getElement().getModifiers().contains(Modifier.STATIC), am));
                         if (!p.isEmpty()) {
                             addMembers(p, am.getUnderlyingType(), false);
                         }
@@ -769,6 +830,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
             List<String> rest = new LinkedList<String>(p);
             String base = rest.remove(0);
+            Boolean found = false;
 
             do {
                 /*
@@ -779,8 +841,9 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     ExecutableElement m = (ExecutableElement) enclosing;
                     for (VariableElement v : m.getParameters()) {
                         if (v.getSimpleName().toString().equals(base)) {
+                            found = true;
                             AnnotatedTypeMirror am = af.getAnnotatedType(v);
-                            path.add(new PathStep(base, PathStep.PathStepKind.PARAMETER, am));
+                            path.add(new PathStep(base, PathStep.PathStepKind.PARAMETER, false, am));
                             if (!rest.isEmpty()) {
                                 addMembers(rest, am.getUnderlyingType(), false);
                             }
@@ -790,18 +853,18 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     TypeElement t = (TypeElement) enclosing;
                     AnnotatedTypeMirror ft = findMember(t, base, false, false);
                     if (ft != null) {
-                        AnnotatedTypeMirror am;
+                        found = true;
                         if (ft.getElement().getKind() == ElementKind.CLASS) {
                             if (rest.isEmpty()) {
                                 throw new OwnerDescriptionError(Result.failure("owner.class.cannot.own"));
                             } else {
-                                path.add(new PathStep(base, PathStep.PathStepKind.CLASS, null));
-                                if (!rest.isEmpty()) {
-                                    addMembers(rest, ft.getElement().asType(), true);
-                                }
+                                path.add(new PathStep(base, PathStep.PathStepKind.CLASS,
+                                        ft.getElement().getModifiers().contains(Modifier.STATIC), null));
+                                addMembers(rest, ft.getElement().asType(), true);
                             }
                         } else { /* Field */
-                            path.add(new PathStep(base, PathStep.PathStepKind.FIELD, ft));
+                            path.add(new PathStep(base, PathStep.PathStepKind.FIELD,
+                                    ft.getElement().getModifiers().contains(Modifier.STATIC), ft));
                             if (!rest.isEmpty()) {
                                 addMembers(rest, ft.getUnderlyingType(), false);
                             }
@@ -809,13 +872,57 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     }
                 }
                 enclosing = enclosing.getEnclosingElement();
-            } while (enclosing.getKind() != ElementKind.PACKAGE);
+            } while (!found && enclosing.getKind() != ElementKind.PACKAGE);
 
-            throw new OwnerDescriptionError(Result.failure("owner.no.such.field", base, element.toString()));
+            if (!found) {
+                throw new OwnerDescriptionError(Result.failure("owner.no.such.field", base, element.toString()));
+            }
+        }
+
+        public void append(Owner owner) {
+            for (PathStep s : owner.path) {
+                path.add(s);
+            }
         }
 
         public Boolean isImmutable() {
             return path != null && path.get(path.size() - 1).type.hasAnnotation(af.checker.IMMUTABLE);
+        }
+
+        public Boolean isFullyStatic() {
+            if (path == null) {
+                return null;
+            } else {
+                for (PathStep ps : path) {
+                    if (!ps.isStatic) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+
+        public String asString() {
+            StringBuilder b = new StringBuilder();
+            for (PathStep s : path) {
+                b.append(s.name + ".");
+            }
+            b.deleteCharAt(b.length() - 1);
+            return b.toString();
+        }
+
+        @Override
+        public String toString() {
+            if (path == null) {
+                return "[null path]";
+            } else {
+                StringBuilder builder = new StringBuilder("[");
+                for (PathStep s : path) {
+                    builder.append(s.name + ", ");
+                }
+                builder.append("]");
+                return builder.toString();
+            }
         }
     }
 }

@@ -4,6 +4,7 @@ import checkers.flow.Flow;
 import checkers.flow.GenKillBits;
 import checkers.fun.quals.Anonymous;
 import checkers.fun.quals.Immutable;
+import checkers.fun.quals.OwnedBy;
 import checkers.fun.quals.ReadOnly;
 import checkers.fun.quals.WriteLocal;
 import checkers.types.AnnotatedTypeMirror;
@@ -28,6 +29,7 @@ import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
@@ -63,8 +65,8 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             ExecutableElement mElem = TreeUtils.elementFromUse(inv);
             AnnotatedExecutableType mType = getAnnotatedType(mElem);
             AnnotatedTypeMirror receiverType = getReceiver(inv);
-            if (receiverType != null &&
-                    (receiverType.hasAnnotation(checker.THIS) 
+            if (receiverType != null
+                    && (receiverType.hasAnnotation(checker.THIS)
                     || receiverType.hasAnnotation(checker.MAYBE_THIS)
                     || TreeUtils.isSelfAccess(inv))) {
                 if (mType.hasAnnotation(checker.ANONYMOUS)) {
@@ -117,12 +119,12 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         }
 
         /* Implicit @World on new etc. */
-        if (tree instanceof ExpressionTree &&
-                !type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER)
+        if (tree instanceof ExpressionTree
+                && !type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER)
                 && !type.hasAnnotation(checker.OWNEDBY)) {
             type.addAnnotation(checker.WORLD);
         }
-        
+
         return type;
     }
 
@@ -136,10 +138,10 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 type.addAnnotation(checker.MAYBE_THIS);
             }
         }
-        if (!type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER) 
+        if (!type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER)
                 && !type.hasAnnotation(checker.OWNEDBY) && !type.hasAnnotation(checker.ANYOWNER)
                 && (elt.getKind() == ElementKind.FIELD || elt.getKind() == ElementKind.PARAMETER
-                 || elt.getKind() == ElementKind.LOCAL_VARIABLE)) {
+                || elt.getKind() == ElementKind.LOCAL_VARIABLE)) {
             type.addAnnotation(checker.WORLD);
         }
 
@@ -169,11 +171,9 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 /* Swallow the exception, it should have already been reported */
             }
         }
-        
+
         return type;
     }
-
-
 
     @Override
     protected void annotateImplicit(Tree tree, AnnotatedTypeMirror type) {
@@ -240,7 +240,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
     protected void addMutableAnnotation(AnnotatedTypeMirror type) {
         if (!type.hasAnnotation(checker.IMMUTABLE)) {
             type.addAnnotation(checker.MUTABLE);
-        };
+        }
 
         if (type instanceof AnnotatedExecutableType) {
             AnnotatedExecutableType ext = (AnnotatedExecutableType) type;
@@ -256,12 +256,15 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
     }
 
     public static class JimuvaFlow extends Flow {
+
         protected JimuvaChecker checker;
+
+        MethodTree currentMethod;
 
         public JimuvaFlow(JimuvaChecker checker, CompilationUnitTree root,
                 Set<AnnotationMirror> flowQuals, JimuvaAnnotatedTypeFactory factory) {
-                super(checker, root, flowQuals, factory);
-                this.checker = checker;
+            super(checker, root, flowQuals, factory);
+            this.checker = checker;
         }
 
         @Override
@@ -276,6 +279,25 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 }
             }
         }
+
+        @Override
+        public Void scan(Tree tree, Void p) {
+            if (tree != null && tree.getKind() == Tree.Kind.METHOD) {
+                try {
+                    checker.getState().enterMethodFlow((MethodTree) tree);
+                    return super.scan(tree, p);
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    return null;
+                } finally {
+                    checker.getState().leaveMethodFlow();
+                }
+            } else {
+                return super.scan(tree, p);
+            }
+        }
+
+
     }
 
     @Override
@@ -294,5 +316,33 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         return flowQuals;
     }
 
+    /**
+     * Return the value of the OwnedBy annotation on given type.
+     */
+    public String getOwner(Element el) {
+        List<? extends AnnotationMirror> mirrors = el.getAnnotationMirrors();
+        for (AnnotationMirror m : mirrors) {
+            if ("OwnedBy".equals(m.getAnnotationType().asElement().getSimpleName().toString())) {
+                return AnnotationUtils.elementValue(m, "value", String.class);
+            }
+        }
+        return null;
+    }
 
+    public String getOwner(Tree t) {
+        AnnotatedTypeMirror m = getAnnotatedType(t);
+        AnnotationMirror ob = m.getAnnotation(OwnedBy.class);
+        if (ob != null) {
+            return AnnotationUtils.elementValue(ob, "value", String.class);
+        } else {
+            return null;
+        }
+    }
+
+    public AnnotationMirror ownerAnnotation(String owner) {
+        AnnotationUtils.AnnotationBuilder builder =
+                new AnnotationUtils.AnnotationBuilder(env, OwnedBy.class.getCanonicalName());
+        builder.setValue("value", owner);
+        return builder.build();
+    }
 }

@@ -49,6 +49,8 @@ public class FreeOwner {
 
     public void main(String[] args) {
 
+        String[] foo = args;
+
         @OwnedBy("n")
         IntList c1 = new /*@OwnedBy("n")*/ IntList();
         c1.n = 0; /* Illegal: c1 is owned by n, which is @Immutable */

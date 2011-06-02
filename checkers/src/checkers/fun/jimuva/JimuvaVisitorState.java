@@ -5,10 +5,12 @@
 
 package checkers.fun.jimuva;
 
+import checkers.fun.jimuva.JimuvaVisitor.Owner;
 import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeMirror.*;
 import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
+import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,6 +37,10 @@ public class JimuvaVisitorState {
     /* Current method annotated type */
     protected AnnotatedExecutableType currentMethod;
 
+    /* Current method. Used in Flow context only */
+    protected MethodTree currentMethodFlow;
+    protected Stack<MethodTree> enclosingMethodsFlow;
+
     /* Set of possible aliases of this in the current method. */
     /*
      * #TODO
@@ -47,6 +53,9 @@ public class JimuvaVisitorState {
      * Needed to infer type of paramaters in JimuvaVisitor.
      */
     protected AnnotatedTypeMirror invocationReceiver;
+    /* Owner of the current invocation receiver */
+    protected JimuvaVisitor.Owner invocationReceiverOwner;
+    protected MethodInvocationTree currentInvocation;
 
     /* Map of implicit annotations that the Factory put on methods */
     protected Map<ExecutableElement, AnnotationMirror> implicitAnnotations;
@@ -56,6 +65,7 @@ public class JimuvaVisitorState {
         implicitAnnotations = new HashMap<ExecutableElement, AnnotationMirror>();
         enclosingClassStack = new Stack<AnnotatedDeclaredType>();
         enclosingMethodStack = new Stack<AnnotatedExecutableType>();
+        enclosingMethodsFlow = new Stack<MethodTree>();
     }
 
     public void setFactory(JimuvaAnnotatedTypeFactory factory) {
@@ -151,14 +161,54 @@ public class JimuvaVisitorState {
     }
 
     public Boolean inConstructor() {
-        return currentMethod.getElement().getKind().equals(ElementKind.CONSTRUCTOR);
+        return currentMethod != null 
+                ? currentMethod.getElement().getKind().equals(ElementKind.CONSTRUCTOR)
+                : (currentMethodFlow.getReturnType() == null);
     }
 
-    public void setInvocationReceiver(AnnotatedTypeMirror invocationReceiver) {
-        this.invocationReceiver = invocationReceiver;
+    public void setCurrentInvocation(MethodInvocationTree t) {
+        currentInvocation = t;
+        invocationReceiver = atypeFactory.getReceiver(t);
+        if (invocationReceiver != null) {
+            try {
+                System.err.println("Creating rcv owner for " + t.toString());
+                invocationReceiverOwner =
+                        new JimuvaVisitor.Owner(invocationReceiver.getElement(), atypeFactory);
+                System.err.println("It is " + invocationReceiverOwner.toString());
+            } catch (Owner.OwnerDescriptionError e) {
+                /* Ignore; should have already been reported */
+                System.err.println("But, it failed...");
+                invocationReceiverOwner = null;
+            }
+        } else {
+            invocationReceiverOwner = null;
+        }
     }
 
     public Boolean isReceiver(AnnotationMirror m) {
         return invocationReceiver == null ? false : invocationReceiver.hasAnnotation(m);
+    }
+
+    public Owner getReceiverOwner() {
+        return invocationReceiverOwner;
+    }
+
+    public MethodInvocationTree getCurrentInvocation() {
+        return currentInvocation;
+    }
+
+    public void enterMethodFlow(MethodTree tree) {
+        if (currentMethodFlow != null) {
+            enclosingMethodsFlow.push(currentMethodFlow);
+        }
+        currentMethodFlow = tree;
+    }
+
+    public void leaveMethodFlow() {
+        if (!enclosingMethodsFlow.isEmpty()) {
+            currentMethodFlow = enclosingMethodsFlow.pop();
+        } else {
+            currentMethodFlow = null;
+        }
     }
 }

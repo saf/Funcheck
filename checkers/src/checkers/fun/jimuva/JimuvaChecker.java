@@ -88,6 +88,10 @@ public class JimuvaChecker extends BaseTypeChecker {
         return annotationFactory;
     }
 
+    public JimuvaVisitorState getState() {
+        return state;
+    }
+
     /**
      * Issue a note to the error stream.
      *
