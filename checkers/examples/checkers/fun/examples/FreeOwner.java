@@ -54,7 +54,7 @@ public class FreeOwner {
         c1.n = 0; /* Illegal: c1 is owned by n, which is @Immutable */
 
         @OwnedBy("m")
-        String c1e = new /*@OwnedBy("m")*/ String("I am owned by n");
+        String c1e = new /*@OwnedBy("m")*/ String("I am owned by m");
         
         @OwnedBy("Master.z")
         String c2 = new /*@OwnedBy("Master.z")*/ String("I am owned by Master.z");
