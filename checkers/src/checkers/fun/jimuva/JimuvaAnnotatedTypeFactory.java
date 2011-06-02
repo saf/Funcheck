@@ -113,6 +113,12 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                     type.removeAnnotation(checker.PEER);
                     type.addAnnotation(checker.REP);
                 }
+            } else if (elemType.hasAnnotation(checker.OWNEDBY)) {
+                JimuvaVisitor.Owner elOwner = new JimuvaVisitor.Owner(elem, this);
+                JimuvaVisitor.Owner expOwner = new JimuvaVisitor.Owner(mst.getExpression(), this);
+                expOwner.append(elOwner);
+                type.removeAnnotation(checker.OWNEDBY);
+                type.addAnnotation(ownerAnnotation(expOwner.asString()));
             }
         }
 

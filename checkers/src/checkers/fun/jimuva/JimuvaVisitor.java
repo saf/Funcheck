@@ -244,7 +244,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                         refined.addAnnotation(atypeFactory.ownerAnnotation(rcvOwner.asString()));
                     } else {
                         /* Possible on error in owner description. Do not produce spurious errors
-                           stemming from there. */
+                        stemming from there. */
                         refined.addAnnotation(checker.ANYOWNER); /* Suppress errors */
                     }
                 } else if (!(state.isReceiver(checker.PEER))) {
@@ -254,8 +254,9 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             } else if (refined.hasAnnotation(checker.OWNEDBY)
                     && !TreeUtils.isSelfAccess(invocation)) {
                 Owner desiredOwner = new Owner(refined.getElement(), atypeFactory);
-                Owner rcv = new Owner(invocation.getMethodSelect(), atypeFactory);
-                rcv.append(desiredOwner); /* TODO is this valid? */
+                MemberSelectTree recvSelect = (MemberSelectTree) invocation.getMethodSelect();
+                Owner rcv = new Owner(recvSelect.getExpression(), atypeFactory);
+                rcv.append(desiredOwner);
                 refined.removeAnnotation(checker.OWNEDBY);
                 refined.addAnnotation(atypeFactory.ownerAnnotation(rcv.asString()));
             }
@@ -281,6 +282,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 checker.report(Result.failure("returning.rep", node.getExpression().toString()), node);
             }
         }
+
         return super.visitReturn(node, p);
     }
 
@@ -705,13 +707,16 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             if (owner != null) {
                 path = new LinkedList<PathStep>();
                 List<String> parts = Arrays.asList(owner.split("\\."));
+                List<String> significant = new LinkedList<String>();
 
                 for (String p : parts) {
                     if (!isValidName(p)) {
                         throw new OwnerDescriptionError(Result.failure("owner.invalid.identifier", p));
+                    } else if (!"this".equals(p)) {
+                        significant.add(p);
                     }
                 }
-                constructPath(parts);
+                constructPath(significant);
             }
         }
 
@@ -738,11 +743,13 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             if (t.getKind() == Tree.Kind.IDENTIFIER) {
                 IdentifierTree lastId = (IdentifierTree) t;
                 AnnotatedTypeMirror type = af.getAnnotatedType(t);
-                path.add(new PathStep(lastId.getName().toString(),
-                        type.getElement().getKind() == ElementKind.CLASS
-                        ? PathStep.PathStepKind.CLASS
-                        : PathStep.PathStepKind.FIELD,
-                        type.getElement().getModifiers().contains(Modifier.STATIC), type));
+                if (!"this".equals(lastId.getName().toString())) {
+                    path.add(new PathStep(lastId.getName().toString(),
+                            type.getElement().getKind() == ElementKind.CLASS
+                            ? PathStep.PathStepKind.CLASS
+                            : PathStep.PathStepKind.FIELD,
+                            type.getElement().getModifiers().contains(Modifier.STATIC), type));
+                }
             } else {
                 /* Kind of hack... If the MemberSelect is of
                  * non-identifier-sequence form, e.g.
