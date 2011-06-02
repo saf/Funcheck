@@ -109,11 +109,9 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             AnnotatedTypeMirror elemType = getAnnotatedType(elem);
             AnnotatedTypeMirror expElemType = getAnnotatedType(mst.getExpression());
             if (elemType.hasAnnotation(checker.PEER)) {
-                type.removeAnnotation(checker.PEER);
                 if (expElemType.hasAnnotation(checker.REP)) {
+                    type.removeAnnotation(checker.PEER);
                     type.addAnnotation(checker.REP);
-                } else if (expElemType.hasAnnotation(checker.PEER)) {
-                    type.addAnnotation(checker.PEER);
                 }
             }
         }
@@ -121,7 +119,8 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         /* Implicit @World on new etc. */
         if (tree instanceof ExpressionTree
                 && !type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER)
-                && !type.hasAnnotation(checker.OWNEDBY)) {
+                && !type.hasAnnotation(checker.OWNEDBY) && !type.hasAnnotation(checker.ANYOWNER)
+                && !type.hasAnnotation(checker.SAFE)) {
             type.addAnnotation(checker.WORLD);
         }
 

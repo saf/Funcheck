@@ -171,13 +171,10 @@ public class JimuvaVisitorState {
         invocationReceiver = atypeFactory.getReceiver(t);
         if (invocationReceiver != null) {
             try {
-                System.err.println("Creating rcv owner for " + t.toString());
                 invocationReceiverOwner =
                         new JimuvaVisitor.Owner(invocationReceiver.getElement(), atypeFactory);
-                System.err.println("It is " + invocationReceiverOwner.toString());
             } catch (Owner.OwnerDescriptionError e) {
                 /* Ignore; should have already been reported */
-                System.err.println("But, it failed...");
                 invocationReceiverOwner = null;
             }
         } else {
