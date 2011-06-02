@@ -1,0 +1,29 @@
+-*- org -*-
+
+* Zadania programistyczne
+
+** TODO @OwnedBy na wartościach zwracanych przez metody
+** TODO Co się dzieje, jeżeli właścicielem są pola statyczne? 
+
+      Czy nie ma fałszywych błędów?
+
+** TODO Posiadanie przez zmienne lokalne. 
+** TODO Refactoring relacji pomiędzy adnotacjami własnościowymi.
+
+   Jakoś tak:
+
+      @World   @OwnedBy   @Peer    @Rep
+         |        |         |        |
+         +--- +---+         |        |
+              |             |        |
+           @AnyOwner        |        |
+              |             |        |
+              +---------+---+--------+
+                        |
+                      @Safe
+
+* Metazadania 
+** TODO E-mail do promotora (spotkanie?)
+** TODO Załatwienie zmiany tematu pracy
+
+* Plan pracy
