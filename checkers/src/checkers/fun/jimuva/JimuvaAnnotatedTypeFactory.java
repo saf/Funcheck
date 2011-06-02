@@ -136,9 +136,10 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 type.addAnnotation(checker.MAYBE_THIS);
             }
         }
-        if (!type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER) && !type.hasAnnotation(checker.OWNEDBY)
+        if (!type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER) 
+                && !type.hasAnnotation(checker.OWNEDBY) && !type.hasAnnotation(checker.ANYOWNER)
                 && (elt.getKind() == ElementKind.FIELD || elt.getKind() == ElementKind.PARAMETER
-                    || elt.getKind() == ElementKind.LOCAL_VARIABLE)) {
+                 || elt.getKind() == ElementKind.LOCAL_VARIABLE)) {
             type.addAnnotation(checker.WORLD);
         }
 
@@ -150,11 +151,18 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             type.removeAnnotation(checker.OWNEDBY);
         }
 
+        /* @AnyOwner elements may ignore @OwnedBy annotations */
+        if (type.hasAnnotation(checker.ANYOWNER)) {
+            type.removeAnnotation(checker.OWNEDBY);
+            type.removeAnnotation(checker.WORLD);
+        }
+
         /* Add implicit @Immutable to objects @OwnedBy @Immutable objects. */
         if (type.hasAnnotation(checker.OWNEDBY)) {
             try {
                 JimuvaVisitor.Owner owner = new JimuvaVisitor.Owner(elt, this);
                 if (owner.isImmutable()) {
+                    type.removeAnnotation(checker.MUTABLE);
                     type.addAnnotation(checker.IMMUTABLE);
                 }
             } catch (JimuvaVisitor.Owner.OwnerDescriptionError err) {
@@ -282,6 +290,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         flowQuals.add(checker.NOT_THIS);
         flowQuals.add(checker.MAYBE_THIS);
         flowQuals.add(checker.SAFE);
+        flowQuals.add(checker.ANYOWNER);
         return flowQuals;
     }
 
