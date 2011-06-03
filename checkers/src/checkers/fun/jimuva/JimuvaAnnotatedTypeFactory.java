@@ -84,13 +84,23 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 type.addAnnotation(checker.NOT_THIS);
             }
 
-            /* When a method of a @Rep object returns @Peer, the result is @Rep. */
-            if (receiverType != null && mType.getReturnType().hasAnnotation(checker.PEER)) {
-                type.removeAnnotation(checker.PEER);
-                if (receiverType.hasAnnotation(checker.REP)) {
-                    type.addAnnotation(checker.REP);
-                } else if (receiverType.hasAnnotation(checker.PEER)) {
-                    type.addAnnotation(checker.PEER);
+            AnnotatedTypeMirror returnType = mType.getReturnType();
+            if (receiverType != null) {
+                if (returnType.hasAnnotation(checker.PEER)) {
+                    type.removeAnnotation(checker.PEER);
+                    if (receiverType.hasAnnotation(checker.REP)) {
+                        type.addAnnotation(checker.REP);
+                    } else if (receiverType.hasAnnotation(checker.PEER)) {
+                        type.addAnnotation(checker.PEER);
+                    }
+                } else if (returnType.hasAnnotation(checker.OWNEDBY) 
+                        && !TreeUtils.isSelfAccess(inv)) {
+                    MemberSelectTree mst = (MemberSelectTree) inv.getMethodSelect();
+                    JimuvaVisitor.Owner retOwner = new JimuvaVisitor.Owner(mElem, this);
+                    JimuvaVisitor.Owner selOwner = new JimuvaVisitor.Owner(mst.getExpression(), this);
+                    selOwner.append(retOwner);
+                    type.removeAnnotation(checker.OWNEDBY);
+                    type.addAnnotation(ownerAnnotation(selOwner.asString()));
                 }
             }
         } else if (tree.getKind() == Tree.Kind.IDENTIFIER) {
@@ -263,7 +273,6 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
     public static class JimuvaFlow extends Flow {
 
         protected JimuvaChecker checker;
-
         MethodTree currentMethod;
 
         public JimuvaFlow(JimuvaChecker checker, CompilationUnitTree root,
@@ -301,8 +310,6 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 return super.scan(tree, p);
             }
         }
-
-
     }
 
     @Override
@@ -335,8 +342,11 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
     }
 
     public String getOwner(Tree t) {
-        AnnotatedTypeMirror m = getAnnotatedType(t);
-        AnnotationMirror ob = m.getAnnotation(OwnedBy.class);
+        return getOwner(getAnnotatedType(t));
+    }
+
+    public String getOwner(AnnotatedTypeMirror t) {
+        AnnotationMirror ob = t.getAnnotation(OwnedBy.class);
         if (ob != null) {
             return AnnotationUtils.elementValue(ob, "value", String.class);
         } else {

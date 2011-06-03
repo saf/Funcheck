@@ -720,7 +720,15 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         public Owner(Element elt, JimuvaAnnotatedTypeFactory af) throws OwnerDescriptionError {
             this.af = af;
             this.element = elt;
-            String owner = af.getOwner(element);
+            
+            String owner;
+            if (element.getKind() == ElementKind.METHOD) {
+                AnnotatedExecutableType type = (AnnotatedExecutableType) af.getAnnotatedType(element);
+                owner = af.getOwner(type.getReturnType());
+            } else {
+                owner = af.getOwner(element);
+            }
+
             if (owner != null) {
                 path = new LinkedList<PathStep>();
                 List<String> parts = Arrays.asList(owner.split("\\."));
