@@ -13,12 +13,14 @@ import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.Map;
 import java.util.Stack;
 import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
+import javax.lang.model.element.Name;
 
 /**
  *
@@ -40,6 +42,27 @@ public class JimuvaVisitorState {
     /* Current method. Used in Flow context only */
     protected MethodTree currentMethodFlow;
     protected Stack<MethodTree> enclosingMethodsFlow;
+
+    /* Block -- represents the  */
+    protected static class Block {
+
+        private static Map<String, AnnotatedTypeMirror> vars;
+
+        public Block() {
+            vars = new HashMap<String, AnnotatedTypeMirror>();
+        }
+
+        public AnnotatedTypeMirror get(String s) {
+            return vars.get(s);
+        }
+
+        public void add(String s, AnnotatedTypeMirror m) {
+            vars.put(s, m);
+        }
+
+    }
+
+    protected Stack<Block> blocks;
 
     /* Set of possible aliases of this in the current method. */
     /*
@@ -66,6 +89,7 @@ public class JimuvaVisitorState {
         enclosingClassStack = new Stack<AnnotatedDeclaredType>();
         enclosingMethodStack = new Stack<AnnotatedExecutableType>();
         enclosingMethodsFlow = new Stack<MethodTree>();
+        blocks = new Stack<Block>();
     }
 
     public void setFactory(JimuvaAnnotatedTypeFactory factory) {
@@ -207,5 +231,39 @@ public class JimuvaVisitorState {
         } else {
             currentMethodFlow = null;
         }
+    }
+
+    public void enterBlock() {
+        blocks.push(new Block());
+    }
+
+    public void leaveBlock() {
+        blocks.pop();
+    }
+
+    public void addVariable(String s, AnnotatedTypeMirror m) {
+        blocks.firstElement().add(s, m);
+    }
+
+    public void shadowVariable(String s) {
+        /*
+         * If a variable is shadowed by a field, we put a dummy entry
+         * into the first block's vars which acts as if the variable did not exist.
+         */
+        if (!blocks.empty()) {
+            blocks.firstElement().add(s, null);
+        }
+    }
+
+    public AnnotatedTypeMirror localVariable(String s) {
+        Iterator<Block> it = blocks.iterator();
+        while (it.hasNext()) {
+            Block b = it.next();
+            AnnotatedTypeMirror m = b.get(s);
+            if (m != null) {
+                return m;
+            }
+        }
+        return null;
     }
 }

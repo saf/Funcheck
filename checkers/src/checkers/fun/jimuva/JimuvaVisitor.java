@@ -13,6 +13,7 @@ import checkers.util.TreeUtils;
 import com.sun.source.tree.ArrayAccessTree;
 import com.sun.source.tree.ArrayTypeTree;
 import com.sun.source.tree.AssignmentTree;
+import com.sun.source.tree.BlockTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
@@ -120,6 +121,12 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             new Owner(el, atypeFactory); /* Constructor performs checking */
         } catch (Owner.OwnerDescriptionError err) {
             checker.report(err.getResult(), node);
+        }
+
+        if (el.getKind() == ElementKind.LOCAL_VARIABLE) {
+            state.addVariable(el.getSimpleName().toString(), type);
+        } else {
+            state.shadowVariable(el.getSimpleName().toString());
         }
 
         return super.visitVariable(node, p);
@@ -602,6 +609,16 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         return false;
     }
 
+    @Override
+    public Void visitBlock(BlockTree node, Void p) {
+        try {
+            state.enterBlock();
+            return super.visitBlock(node, p);
+        } finally {
+            state.leaveBlock();
+        }
+    }
+
     public enum ThisReferenceSource {
 
         THIS_LITERAL {
@@ -684,7 +701,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
             public static enum PathStepKind {
 
-                CLASS, FIELD, PARAMETER, UNKNOWN
+                CLASS, FIELD, LOCAL, PARAMETER, UNKNOWN
             }
             public String name;
             public PathStepKind kind;
@@ -736,6 +753,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 path.add(new PathStep(mst.getIdentifier().toString(),
                         type.getElement().getKind() == ElementKind.CLASS
                         ? PathStep.PathStepKind.CLASS
+                        : type.getElement().getKind() == ElementKind.LOCAL_VARIABLE
+                        ? PathStep.PathStepKind.LOCAL
                         : PathStep.PathStepKind.FIELD,
                         type.getElement().getModifiers().contains(Modifier.STATIC), type));
                 t = TreeUtils.skipParens(mst.getExpression());
@@ -747,6 +766,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     path.add(new PathStep(lastId.getName().toString(),
                             type.getElement().getKind() == ElementKind.CLASS
                             ? PathStep.PathStepKind.CLASS
+                            : type.getElement().getKind() == ElementKind.LOCAL_VARIABLE
+                            ? PathStep.PathStepKind.LOCAL
                             : PathStep.PathStepKind.FIELD,
                             type.getElement().getModifiers().contains(Modifier.STATIC), type));
                 }
@@ -838,6 +859,16 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             List<String> rest = new LinkedList<String>(p);
             String base = rest.remove(0);
             Boolean found = false;
+
+            /* Try to find base among local variables. */
+            AnnotatedTypeMirror localType = af.checker.getState().localVariable(base);
+            if (localType != null) {
+                found = true;
+                path.add(new PathStep(base, PathStep.PathStepKind.LOCAL, false, localType));
+                if (!rest.isEmpty()) {
+                    addMembers(rest, localType.getUnderlyingType(), false);
+                }
+            }
 
             do {
                 /*
