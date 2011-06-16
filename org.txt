@@ -2,12 +2,21 @@
 
 * Zadania programistyczne
 
-** TODO @OwnedBy na wartościach zwracanych przez metody
+** DONE @OwnedBy na wartościach zwracanych przez metody
 ** TODO Co się dzieje, jeżeli właścicielem są pola statyczne? 
 
       Czy nie ma fałszywych błędów?
 
-** TODO Posiadanie przez zmienne lokalne. 
+      public static class C { public static Object s }
+      C x, y;
+
+      @OwnedBy("x.s") c; 
+      @OwnedBy("y.s") d;
+      c = d; /* ??? */
+
+      Dostajemy fałszywy błąd (bo oczywiście x.s = y.s, ale jak to rozwiązać?
+
+** DONE Posiadanie przez zmienne lokalne.
 ** TODO Refactoring relacji pomiędzy adnotacjami własnościowymi.
 
    Jakoś tak:
@@ -22,8 +31,60 @@
                         |
                       @Safe
 
-* Metazadania 
-** TODO E-mail do promotora (spotkanie?)
-** TODO Załatwienie zmiany tematu pracy
+** DONE OwnershipPassing ujawnił buga z fałszywym przekazywaniem adnotacji NotThis
 
+   To nie bug, tylko feature. NotThis jest przy założeniu, że do tej
+   pory nie przekazaliśmy żadnemu innemu obiektowi referencji do 'this'.
+
+* Metazadania 
+** DONE E-mail do promotora (spotkanie?)
+** TODO Załatwienie zmiany tematu pracy
+   
 * Plan pracy
+
+* Zagadnienia do opisania
+
+** System typów w Checkers Frameworku
+** @Immutable
+*** Checking
+*** Passing
+*** Arrays (?)
+**** Too strict to disallow @Immutable <- @Mutable assignments?
+** @ReadOnly methods
+*** Checking on @Immutable objects
+** @Safe references
+*** Modelling ownership polymorphism
+*** Checking safety
+**** References: flow
+**** Passing to methods
+** @Anonymous
+*** Motivation
+*** Checking
+**** 'this' reference passing 
+**** Returning 'this'
+**** not assigning 'this' to fields
+**** not calling non-@Anonymous methods on 'this'
+**** Checking default constructor when creating Arrays
+**** Finding default constructor
+**** Warnings when creating @Immutable objects through non-@Anonymous ctors
+**** @NotThis, @MaybeThis annotations
+***** Inference
+** @ImmutableClass
+*** Checking (trivial)
+*** Implicit annotations
+** Ownership
+*** @World
+**** Default, should not appear in user code
+*** @Rep
+**** Protection from the outside world:
+***** No public @Rep fields
+***** Cannot return or pass as unsafe parameters
+***** No peeking, even from same class -- problem with unchecked code
+***** No modifying through assignments
+*** @Peer
+*** @OwnedBy
+**** Resolving element names in annotation
+**** Consequences: Immutability
+*** @AnyOwner
+*** Refining method parameters
+
