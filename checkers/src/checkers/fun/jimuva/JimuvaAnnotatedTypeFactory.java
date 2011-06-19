@@ -190,6 +190,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             }
         }
 
+        /* Implicit ownership */
         if (!type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER)
                 && !type.hasAnnotation(checker.OWNEDBY) && !type.hasAnnotation(checker.ANYOWNER)
                 && (elt.getKind() == ElementKind.FIELD || elt.getKind() == ElementKind.PARAMETER
@@ -217,6 +218,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 JimuvaVisitor.Owner owner = new JimuvaVisitor.Owner(elt, this);
                 if (owner.isImmutable()) {
                     type.removeAnnotation(checker.MUTABLE);
+                    type.removeAnnotation(checker.MYACCESS);
                     type.addAnnotation(checker.IMMUTABLE);
                 }
             } catch (JimuvaVisitor.Owner.OwnerDescriptionError err) {
@@ -234,7 +236,11 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         if (tree.getKind() == Tree.Kind.METHOD) {
             refineMethodType((AnnotatedExecutableType) type);
         }
-        addMutableAnnotation(type);
+        if (tree.getKind() != Tree.Kind.CLASS
+                && tree.getKind() != Tree.Kind.COMPILATION_UNIT
+                && tree.getKind() != Tree.Kind.IMPORT) {
+            implicitAccessRights(type);
+        }
     }
 
     @Override
@@ -243,7 +249,12 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         if (el.getKind() == ElementKind.CONSTRUCTOR || el.getKind() == ElementKind.METHOD) {
             refineMethodType((AnnotatedExecutableType) type);
         }
-        addMutableAnnotation(type);
+        if (el.getKind() != ElementKind.CLASS
+                && el.getKind() != ElementKind.ENUM
+                && el.getKind() != ElementKind.INTERFACE
+                && el.getKind() != ElementKind.PACKAGE) {
+            implicitAccessRights(type);
+        }
     }
 
     protected void refineMethodType(AnnotatedExecutableType type) {
@@ -267,6 +278,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             AnnotatedTypeMirror.AnnotatedDeclaredType receiver = type.getReceiverType();
             if (receiver != null) {
                 receiver.removeAnnotation(checker.MUTABLE);
+                receiver.removeAnnotation(checker.MYACCESS);
                 receiver.addAnnotation(checker.IMMUTABLE);
             }
         }
@@ -289,21 +301,28 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
      *
      * @param type the type to be refined.
      */
-    protected void addMutableAnnotation(AnnotatedTypeMirror type) {
-        if (!type.hasAnnotation(checker.IMMUTABLE)) {
+    protected void implicitAccessRights(AnnotatedTypeMirror type) {
+
+        if (!(type instanceof AnnotatedExecutableType)
+                && !type.hasAnnotation(checker.IMMUTABLE)
+                && !type.hasAnnotation(checker.MYACCESS)
+                && !type.hasAnnotation(checker.MUTABLE)) {
+            type.removeAnnotation(checker.BOTTOM);
             type.addAnnotation(checker.MUTABLE);
         }
 
         if (type instanceof AnnotatedExecutableType) {
             AnnotatedExecutableType ext = (AnnotatedExecutableType) type;
-            addMutableAnnotation(ext.getReceiverType());
-            addMutableAnnotation(ext.getReturnType());
+            if (type.getElement().getKind() != ElementKind.CONSTRUCTOR) {
+                implicitAccessRights(ext.getReceiverType());
+                implicitAccessRights(ext.getReturnType());
+            }
             for (AnnotatedTypeMirror t : ext.getParameterTypes()) {
-                addMutableAnnotation(t);
+                implicitAccessRights(t);
             }
         } else if (type instanceof AnnotatedArrayType) {
             AnnotatedArrayType art = (AnnotatedArrayType) type;
-            addMutableAnnotation(art.getComponentType());
+            implicitAccessRights(art.getComponentType());
         }
     }
 

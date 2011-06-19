@@ -6,7 +6,9 @@ import checkers.fun.quals.*;
 import checkers.quals.TypeQualifiers;
 import checkers.types.AnnotatedTypeFactory;
 import checkers.types.AnnotatedTypeMirror;
+import checkers.types.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import checkers.types.AnnotatedTypeMirror.AnnotatedNullType;
+import checkers.types.AnnotatedTypes;
 import checkers.types.QualifierHierarchy;
 import checkers.types.TypeHierarchy;
 import checkers.util.AnnotationUtils;
@@ -27,8 +29,8 @@ import javax.tools.Diagnostic.Kind;
 @TypeQualifiers({
     /* Class qualifiers */
     ImmutableClass.class, MutableClass.class,
-    /* Object qualifiers */ 
-    Mutable.class, Immutable.class,
+    /* Object and type qualifiers */ 
+    Bottom.class, Mutable.class, Immutable.class, Myaccess.class,
     /* Method & constructor qualifiers */
     ReadOnly.class, ReadWrite.class, WriteLocal.class, Anonymous.class,
     /* Field qualifiers */
@@ -43,7 +45,7 @@ public class JimuvaChecker extends BaseTypeChecker {
     protected AnnotationUtils annotationFactory;
     protected JimuvaVisitorState state;
 
-    public AnnotationMirror IMMUTABLE, MUTABLE, MYACCESS, 
+    public AnnotationMirror BOTTOM, IMMUTABLE, MUTABLE, MYACCESS,
             READONLY, REP, PEER, WORLD, OWNEDBY,
             ANONYMOUS, IMMUTABLE_CLASS,
             THIS, NOT_THIS, MAYBE_THIS,
@@ -52,6 +54,7 @@ public class JimuvaChecker extends BaseTypeChecker {
     @Override
     public synchronized void init(ProcessingEnvironment processingEnv) {
         annotationFactory = AnnotationUtils.getInstance(processingEnv);
+        BOTTOM     = annotationFactory.fromClass(Bottom.class);
         IMMUTABLE  = annotationFactory.fromClass(Immutable.class);
         MUTABLE    = annotationFactory.fromClass(Mutable.class);
         MYACCESS   = annotationFactory.fromClass(Myaccess.class);

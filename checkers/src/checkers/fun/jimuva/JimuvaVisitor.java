@@ -7,6 +7,7 @@ import checkers.source.Result;
 import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import checkers.types.AnnotatedTypeMirror.AnnotatedExecutableType;
+import checkers.types.AnnotatedTypes;
 import checkers.util.ElementUtils;
 import checkers.util.InternalUtils;
 import checkers.util.TreeUtils;
@@ -82,7 +83,17 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                         varTree.toString(), receiver.getElement().toString()), node);
             }
         }
+
         AnnotatedTypeMirror methodReceiver = state.getCurrentMethod().getReceiverType();
+
+        /* Prohibit the modification of @Myaccess values in @Readonly methods */
+        if (methodReceiver.hasAnnotation(checker.IMMUTABLE)
+                && receiver != null && receiver.hasAnnotation(checker.MYACCESS)) {
+            checker.report(Result.failure("modifying.myaccess.in.readonly", 
+                    varTree.toString(), state.getCurrentMethodName()), node);
+        }
+
+        /* Check that @Rep values are not modified */
         checkAssignmentRep(node, methodReceiver != null
                 && methodReceiver.hasAnnotation(checker.IMMUTABLE));
 
@@ -104,6 +115,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         /* Check that no @Rep field is public */
         VariableElement el = TreeUtils.elementFromDeclaration(node);
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(el);
+        AnnotatedExecutableType meth = state.getCurrentMethod();
         if (el.getKind().isField()
                 && el.getModifiers().contains(Modifier.PUBLIC)
                 && type.hasAnnotation(checker.REP)) {
@@ -122,6 +134,20 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 && type.hasAnnotation(checker.REP)
                 && type.hasAnnotation(checker.MUTABLE)) {
             checker.report(Result.failure("mutable.rep.field", el.getSimpleName()), el);
+        }
+
+        /* In static methods and constructors, prohibit the use of @Myaccess */
+        if (meth != null 
+                && (meth.getReturnType() == null || meth.getElement().getModifiers().contains(Modifier.STATIC))
+                && type.hasAnnotation(checker.MYACCESS)) {
+            checker.report(Result.failure("myaccess.variable.in.static.method",
+                    node.getName().toString(), state.getCurrentMethodName()), node);
+        }
+
+        /* Prohibit @Myaccess static members */
+        if (el.getKind().isField() && el.getModifiers().contains(Modifier.STATIC)
+                && type.hasAnnotation(checker.MYACCESS)) {
+            checker.report(Result.failure("static.myaccess.field", node.getName().toString()), node);
         }
 
         /* Check ownership declaration */
@@ -143,8 +169,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
     @Override
     protected void commonAssignmentCheck(AnnotatedTypeMirror varType, AnnotatedTypeMirror valueType, Tree valueTree, String errorKey, Void p) {
-//        System.err.println("Assigning " + valueTree.toString() + " (" + valueType.toString() +
-//               ") to " + varType.toString());
+        //System.err.println("Assigning " + valueTree.toString() + " (" + valueType.toString() +
+        //       ") to " + varType.toString());
 
         AnnotatedTypeMirror varCopy = annoTypes.deepCopy(varType);
 
@@ -442,9 +468,6 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         AnnotatedTypeMirror methodReceiver = mcp.getReceiverType().getErased();
         AnnotatedTypeMirror treeReceiver = methodReceiver.getCopy(false);
         treeReceiver.addAnnotations(atypeFactory.getReceiver(node).getAnnotations());
-
-//        System.err.println("Method receiver: " + methodReceiver.toString()
-//                + "Tree receiver: " + treeReceiver.toString());
 
         if (treeReceiver.hasAnnotation(checker.MUTABLE)
                 && methodReceiver.hasAnnotation(checker.IMMUTABLE)) {

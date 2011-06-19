@@ -6,17 +6,15 @@
 package checkers.fun.quals;
 
 import checkers.quals.DefaultQualifierInHierarchy;
-import checkers.quals.ImplicitFor;
 import checkers.quals.SubtypeOf;
-import com.sun.source.tree.Tree.Kind;
-import java.lang.annotation.*;
+import java.lang.annotation.Documented;
 
 /**
- * General type of object references.
+ * Dummy type annotation to be used for declared types. It needs not appear in user code. 
  *
  * @author saf
  */
 @Documented
-@Retention(RetentionPolicy.CLASS)
-@SubtypeOf({Bottom.class})
-public @interface Mutable {}
+@SubtypeOf({})
+@DefaultQualifierInHierarchy
+public @interface Bottom {}

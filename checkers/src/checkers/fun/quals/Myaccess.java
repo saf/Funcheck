@@ -18,5 +18,5 @@ import java.lang.annotation.RetentionPolicy;
  */
 @Documented
 @Retention(RetentionPolicy.CLASS)
-@SubtypeOf({})
+@SubtypeOf({Bottom.class})
 public @interface Myaccess {}

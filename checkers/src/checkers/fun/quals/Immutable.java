@@ -12,5 +12,5 @@ import java.lang.annotation.*;
  */
 @Documented
 @Retention(RetentionPolicy.CLASS)
-@SubtypeOf({Mutable.class})
+@SubtypeOf({Bottom.class})
 public @interface Immutable {}
