@@ -69,6 +69,8 @@
 **** Warnings when creating @Immutable objects through non-@Anonymous ctors
 **** @NotThis, @MaybeThis annotations
 ***** Inference
+** @WriteLocal
+*** Why it is not needed
 ** @ImmutableClass
 *** Checking (trivial)
 *** Implicit annotations

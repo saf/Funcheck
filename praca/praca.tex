@@ -1,14 +1,18 @@
 \documentclass{pracamgr}
 
-\usepackage[polish]{babel}
 \usepackage[utf8]{inputenc}
 \usepackage{t1enc}
+\usepackage{alltt}
+\usepackage{url}
+\usepackage{tikz}
+\usepackage{subfigure}
+\usetikzlibrary{shapes,arrows}
 
 \author{Sławomir Rudnicki}
 \nralbumu{248277}
 
-\title{Weryfikacja funkcyjności metod Javy}
-\tytulang{Verifying that Java methods are functions}
+\title{Weryfikacja niemutowalności obiektów w Javie}
+\tytulang{Verifying immutability of Java objects}
 \kierunek{Informatyka}
 
 \opiekun{dr. Aleksego Schuberta\\
@@ -21,9 +25,13 @@
   D.2.4. Software/Program Verification
 }
 
-\keywords{Java, purity, functions, verification, logic programming}
+\keywords{Java, immutability, ownership, verification, Jimuva}
 
 \newtheorem{defi}{Definicja}[section]
+
+\newcommand{\todo}[1]{}
+
+\newenvironment{code}{\begin{center}\begin{alltt}}{\end{alltt}\end{center}}
 
 \begin{document}
 \maketitle
@@ -36,142 +44,305 @@
 %\listoffigures
 %\listoftables
 
-\chapter*{Wprowadzenie}
+\chapter{Introduction}
+\label{chap:intro}
 
-Programowanie funkcyjne jest jednym z~głównych paradygmatów
-programowania używanych we współczesnej informatyce. Jego idea
-oraz~główne zasady zostały sformułowana w~1977~roku przez Johna
-Backusa~\cite{backus} i stanowiły podstawę dla wielu języków
-programowania, takich jak szeroko używane obecnie OCaml, Standard ML
-oraz wprowadzony niedawno język $F\sharp$.
+\section{Jimuva}
+\label{sec:jimuva}
 
-Jednym z głównych założeń programowania funkcyjnego jest oparcie go o
-procedury zachowujące się tak jak funkcje matematyczne. Po pierwsze
-więc, wynik wywołania takiej procedury zależy wyłącznie od wartości
-parametrów, z którymi została wywołana. Po drugie, wykonanie procedury
-skutkuje wyłącznie wyliczeniem wartości funkcji, a poza tym nie wpływa
-na sposób wyliczania innych wywołań procedur: procedury funkcyjne nie mają
-\emph{efektów ubocznych}.
+In their work, Haack, Poll, Schäfer and Schubert \cite{haack} aim to
+extend a Java-like language with specifications for object
+immutability and ownership. They also provide a type inference system
+for statically enforcing properties related to immutability.
 
-Powyższe własności procedur można przenieść na języki imperatywne,
-takie jak Java. Metody klas Javy zachowujące te własności będziemy
-nazywać metodami \emph{czysto funkcyjnymi}, lub krótko
-\emph{funkcyjnymi} (ang. \emph{pure}). Własność czystej
-funkcyjności metod i klas zostanie ściśle zdefiniowana w rozdziale
-\ref{purity} niniejszej pracy.
+This section aims to present the features of Jimuva which are
+important to this work. Please refer to \cite{haack} for a
+comprehensive specification of the syntax and semantics of the
+language. 
 
-Pojęciem związanym z funkcyjnością jest \emph{niemutowalność} obiektów
-i klas Javy.  Obiekt $X$ jest niemutowalny, jeżeli żaden inny obiekt
-nie może zaobserwować dwóch różnych stanów obiektu $X$. Oznacza to, że
-stan obiektu może zmieniać się wyłącznie w czasie wykonania jego
-konstruktora. Stan obiektu należy tu rozumieć jednak w sposób szerszy
-niż tylko wartości jego pól. W przypadku niektórych klas, pojęcie
-reprezentacji obiektu -- intuicyjnie rozumianej jako obszar pamięci,
-którego wartość definiuje stan obiektu -- musi zostać rozszerzone, by
-obejmować również stan tych obiektów, do których główny obiekt
-utrzymuje referencje.
+Throughout Section \ref{sec:modelling}, we will refer to how the
+notions introduced below are reflected in the JimuvaChecker type
+system, and Section \ref{sec:checking} will deal with how the related
+desired properties are verified in practice.
 
-Dzięki własnościom niemutowalności obiektów oraz funkcyjności ich
-metod uzyskujemy pożądane cechy obiektów i całych systemów, takie jak
-wyeliminowanie zagrożeń związanych z wielowątkowym wykonaniem programu
-oraz bezpieczeństwo w niezaufanym środowisku. Przykładowo, dwie metody
-czysto funkcyjne mogą zostać bezpiecznie wykonane współbieżnie (w~
-przeplocie), ponieważ brak efektów ubocznych zapewnia, że żadna z nich
-nie wpływa na wynik drugiej.
+\subsection{Immutability and ownership specifications}
+\label{subsec:imm-spec}
 
-\section*{Cel pracy}
+Haack et al. extended the object types of their language with
+immutability and ownership specifications. Each object type in Jimuva
+is therefore of the form
+\begin{center}
+  \texttt{C<ar, v>},
+\end{center}
+where \texttt{C} is a class name, \texttt{ar} determines the
+\emph{access rights} to the object and \texttt{v} specifies the
+\emph{owner} of the object.
 
-W ramach niniejszej pracy magisterskiej zaprojektowano i
-zaimplementowano narzędzie \emph{Funcheck}, które pozwala na
-definiowanie i weryfikację własności funkcyjności metod oraz
-niemodyfikowalności obiektów. 
+Access rights may be used to restrict the operations that may be
+performed on a given object. The access rights specification may be
+one of three kinds:
+\begin{itemize}
+\item \texttt{C<rdwr, v> x} -- access to \texttt{x} is unrestricted, 
+\item \texttt{C<rd, v> x} -- \texttt{x} is \emph{read-only}: its state
+  cannot change throughout the lifespan of the object.
+\item \texttt{C<myaccess, v> x} -- \texttt{x} has the same access
+  rights as the object that references it.
+\end{itemize}
 
-Przyjęte w pracy podejście do weryfikacji własności programów jest
-oparte o analizę statyczną kodu i dowodzenie przy pomocy stworzonego
-na potrzeby weryfikacji własności funkcyjności systemu typów. Ów
-system typów bazuje na systemie typów przedstawionym w pracy
-dr. dr. Jacka Chrząszcza i Aleksego Schuberta \emph{Functional
-  Java}. % \cite{functional} ??
+Owner specifications may include an object identifier, or one of the
+special identifiers and variables:
+\begin{itemize}
+\item \texttt{C<ar, world> x} -- no other object owns the given object
+  \texttt{x}, making it freely accessible from the outside world. This
+  is the default ownership specification in Jimuva.
+\item \texttt{C<ar, myowner> x} -- the owner of the given object
+  \texttt{x} is the same as the owner of the object which references
+  \texttt{x} as a field, parameter or local variable.
+\item \texttt{C<ar, this> x} -- the object \texttt{x} is a part of the 
+  object which references \texttt{x}. 
+\end{itemize}
 
-Praca została stworzona w ramach seminarium \emph{Niezawodność systemów 
-współbieżnych i obiektowych} w roku akademickim $2010/11$.
+\subsection{Auxiliary specifications}
+
+In addition to the immutability and ownership specifications for
+objects, Jimuva introduces several other annotations that apply to
+classes and methods.
+
+\subsubsection{Immutable classes}
+
+If a class is marked \texttt{immutable}, all its instances must be
+immutable, i.e. access to them must be read-restricted.
+
+\subsubsection{Read-only methods}
+
+The \texttt{rdonly} attribute of a method signifies that the receiver
+(the object referenced by \texttt{this}) must not be modified within
+the method's body.
+
+\subsubsection{Anonymous constructors}
+
+An \emph{anonymous} constructor does not leak references to
+\texttt{this} to other objects \cite{vitek}. The body of a constructor
+is the place where even immutable objects still mutate. Therefore, if
+such a constructor would pass a reference to the constructed object to
+the outside world, a foreign object could witness two different states
+of the object, breaking the immutability property. All constructors of
+an immutable class are verified for anonymity in
+Jimuva. \todo{reference?}
+
+\subsubsection{Write-local constructors}
+
+Java visibility modifiers (\texttt{private}, \texttt{public} and
+\texttt{protected}) constrain visibility with regards to classes
+rather than objects. As a consequence, it would be possible for a
+constructor to mutate an object of the same class different from the
+constructed object. The \texttt{wrlocal} annotation was devised to
+disallow such mutations: a \emph{write-local} constructor cannot
+modify foreign objects nor call non-readonly methods on objects whose
+ownership is not \texttt{world}. Such actions would break the
+visibility modifiers, which are now to be understood as per-instance
+constraints.
+
+The concept of write-locality was deemed unneccessary in
+JimuvaChecker, as explained in Section \ref{wrlocal}.
+
+\subsection{Ownership polymorphism}
+
+Jimuva allows for \emph{owner-polymorphic} methods, which have
+parameters whose owner objects may be established in the invocation. A
+polymorphic method is declared in the following way:
+\begin{center}
+  \texttt{<x,y> void copy(C<x> from, C<y> to)}
+\end{center}
+and the object identifiers \texttt{x} and \texttt{y} may be
+instantiated to any object.
+
+The authors note that if one or more arguments is instantiated to
+\texttt{this}, it is important to ensure that no static aliases to
+such internal representation objects are created, lest they could be
+used to modify the state of \texttt{this}. Section \ref{sec:safe}
+deals with this problem in the context of JimuvaChecker.
+
+\chapter{The JimuvaChecker tool}
+
+This chapter will present JimuvaChecker, the checker tool created as
+part of this thesis. We aimed to implement the concepts of the
+language Jimuva, as presented in section \ref{sec:jimuva}, and develop
+a checker tool which would satisfy the following requirements:
+\begin{itemize}
+\item \textbf{Applicability to full Java.} The syntax of Jimuva
+  differs from that of full Java. In some ways, it is reduced: there
+  are no loops and even no conditional branches in the core
+  language. In other ways, the syntax is modified -- for example, it
+  utilizes let-binding of local variables rather than declarations --
+  or extended, as it is the case with the ownership and access rights
+  specifications and owner-polymorphism of methods.
+\item \textbf{Efficient checking.} Checking the immutability
+  properties of a system should come together with normal
+  development. If there is no lag between compilation and immutability
+  verification, the developers can fix the surfacing errors
+  immediately, ensuring that the software is free of immutability
+  violations. 
+
+  To be incorporated into normal development, however, a checker must
+  be efficient, i.e. the verification must come with no significant
+  time overhead. A way to ascertain this is to make the checking
+  \emph{modular} -- to verify a compilation unit, a modular checker
+  only requires the source code for the unit and the declarations for
+  the methods and classes used therein.
+\end{itemize}
+
+In order to mirror the notions introduced in Jimuva, Java annotations
+are used in JimuvaChecker to describe properties of objects, methods
+and classes within the syntax of Java. However, the syntax of Java
+annotations, as introduced in Java 5 \cite{jls3}, is insufficient to
+express all immutability-related properties. Therefore, we needed to
+use the extended annotation syntax proposed in the Java Specification
+Request 308 \cite{jsr308}. As a proof of concept, the authors of the
+JSR 308 specification created a Checker Framework \cite{checkers},
+which can be used to build compiler plugins acting as annotation
+processors for the extended syntax.
+
+JimuvaChecker, the checker tool created as part of our work, was
+implemented using the Checker Framework.
+
+Section \ref{sec:framework} briefly describes the main concepts of the
+Checker Framework and some of the syntax extensions introduced by JSR
+308. Section \ref{sec:checking} details on the type system and
+verification implemented in JimuvaChecker.
+
+\section{The Checker Framework}
+\label{sec:framework}
+
+\begin{figure}
+  \centering
+  
+  \subfigure[Example hierarchy of type annotations]{
+    \tikzstyle{block} = [draw, rectangle, fill=blue!10]  
+    \begin{tikzpicture}[auto, node distance=3cm, >=latex]
+      \node [minimum width=6cm] at (2, 1.5) (dummy) {};
+      \node [block] (top) at (2, 1.5) {@Nullable}; 
+      \node [block, below of=top] (bot) at (2, 1.2) {@NonNull}; 
+      \draw [->] (bot) -- (top); 
+    \end{tikzpicture}
+  }
+  \subfigure[The resulting type hierarchy]{
+    \tikzstyle{block} = [draw, rectangle, fill=orange!10]  
+    \begin{tikzpicture}[auto, node distance=3cm, >=latex]
+      \node [block] (top) {@Nullable Object}; 
+      \node [block, below left of=top] (left) {@NonNull Object}; 
+      \node [block, below right of=top] (right) {@Nullable Date}; 
+      \node [block, below right of=left] (bot) {@NonNull Date}; 
+      
+      \draw [->] (bot) -- (left); 
+      \draw [->] (bot) -- (right); 
+      \draw [->] (right) -- (top); 
+      \draw [->] (left) -- (top); 
+      
+    \end{tikzpicture}
+  }
+  \caption{Relations between annotated types in a checker. An arrow from
+    A to B indicates that A is a subtype of B.}
+  \label{fig:example-checker-hierarchy}
+\end{figure}
+
+The Checker Framework is a tool which can be used to create new
+annotation processors for Java. Basically, the checkers extend the
+type-checking functionality of the Java compiler itself by introducing
+a hierarchy of \emph{type annotations} on top of the hierarchy
+stemming from simple subclassing and interfacing. Type annotations are
+Java annotations which can be used on any type occurrence, as enabled
+by the syntax extensions of JSR 308. They can be organised in a
+supertype-subtype hierarchy which enhances the existing Java type
+hierarchy.
+
+Figure \ref{fig:example-checker-hierarchy} shows how such an enhanced
+type hierarchy works. Here, the type annotation @NonNull is defined to
+be a subtype of the default annotation @Nullable. Subtyping in the
+resulting type hierarchy may come from two sources: normal Java
+subclassing and the subtyping between type annotations.
+
+Normally, a pluggable type checker works by extending the
+functionality of the simple \texttt{BaseTypeChecker} shipped with the
+framework. The \texttt{BaseTypeChecker} verifies that all assignments,
+including implicit ones such as the assignment of parameters to formal
+arguments of methods during method invocation, follow the subtyping
+rules. Specifically, if a value of type $B$ is assigned to a reference
+of type $B$, the checker verifies that $B$ is a subtype of $A$ as per
+the enhanced type hierarchy.
+
+A checker based on the Checker Framework usually consists of two main
+modules:
+\begin{itemize}
+\item the \textbf{annotated type factory}, which provides syntactical
+  constructs of the Java language with type annotations according to a
+  given set of rules,
+\item the \textbf{visitor} which traverses the nodes of the abstract
+  syntax tree (AST) of the given compilation unit and verifies
+  properties based on their annotated types inferred by the annotated
+  type factory. This module acts upon the AST by making use of the
+  Visitor design pattern \cite{visitor}. Of course, the properties to
+  be checked are not limited to simple subtyping checking; one may
+  implement any rule which the code being compiled will be checked
+  against.
+\end{itemize}
+Figure \ref{fig:simple-checker} contains the schema of how the modules
+of a checker work to verify the properties of a given source code
+file.
+
+\begin{figure}
+  \centering
+
+  \tikzstyle{block} = [draw, rectangle, fill=orange!10, minimum width=3cm, minimum height=0.6cm]
+  \begin{tikzpicture}[auto, node distance=3cm, >=latex]
+    \node [block, fill=blue!10] (compiler) at (5, 5) {\texttt{javac -processor checkers.x.XChecker code.java}};
+    \node [block, fill=orange!10] (checker) at (5, 4) {XChecker}; 
+    \node [block, fill=yellow!20, node distance=5cm, pin={[pin edge={to-, thin, black}] above:{source code}}] 
+    (code) at (0, 3) {\texttt{code.java}};
+    \node [block] (visitor) at (3, 1) {XVisitor};
+    \node [block] (factory) at (9, 1) {XAnnotatedTypeFactory};
+
+    \draw [->, dashed] (compiler) -- (checker);
+    \draw [->, dashed] (checker) -- (factory);
+    \draw [->, dashed] (checker) -- (visitor);
+    \draw [<->] (visitor) -- node {\parbox[c]{1cm}{\small{assign types}}} (factory) ;
+    \draw [->] (visitor) -- node {\parbox[c]{1.2cm}{\small{check} \tiny{(Visitor pattern)}}} (code);
+  \end{tikzpicture}
+
+  \caption{A simplified schema of source code file analysis by a
+    Checker Framework-based checker.}
+  \label{fig:simple-checker}
+\end{figure}
 
 
-\section*{Struktura pracy}
+\section{Modelling Jimuva in Java}
+\label{sec:modelling}
 
-Praca składa się z \ref{conclusion} rozdziałów:
-\begin{description}
-\item[Rozdział \ref{purity}] definiuje własności programów
-  weryfikowane przez narzędzie \emph{Funcheck},
-\item[Rozdział \ref{project}] zawiera omówienie metod i narzędzi
-  zastosowanych w projekcie i implementacji narzędzia \emph{Funcheck}, 
-\item[Rozdział \ref{type-system}] zawiera definicję typów i reguł
-  typowania używanych do weryfikacji funkcyjności metod Javy.
-\item[Rozdział \ref{verification-results}] zawiera przykłady działania
-  stworzonego narzędzia: programy, które są poprawnie weryfikowane
-  przez narzędzie \emph{Funcheck}, jak i te, które ze względu na
-  niepełność opracowanego systemu typów nie mogą zostać poprawnie
-  zweryfikowane.
-\item[Rozdział \ref{conclusion}] stanowi podsumowanie pracy. 
-\end{description}
+This section contains details on the translation of Jimuva access
+rights and~ownership specifications into Java annotations. For
+information on how the desired properties are verified, please refer
+to Section \ref{sec:checking}.
 
-\chapter{Weryfikowane własności}
-\label{purity}
+\subsection{Introduction}
 
-Celem tego rozdziału jest szczegółowe określenie własności
-funkcyjności i niemutowalności dla elementów języka Java. W tym celu
-najpierw zostaną wprowadzone definicje podstawowych pojęć związanych z
-semantyką Javy, a następnie przy ich użyciu zostaną zdefiniowane 
-omawiane własności. 
+There are two basic concepts of Jimuva which extend the Java language
+syntax and therefore need to be translated into Java annotations: the
+access rights and ownership specifications. The other differences
+between the syntax of Jimuva and Java are virtually insignificant for
+this work. For example, the \texttt{let}-bindings, which Jimuva uses
+in place of local variables, are easily mirrored into simple local
+variable declarations. Taking care of the syntactical construct of
+Java which do not exist in Jimuva, such as loops, will also prove to
+be easy for the purpose of verifying immutability properties.
 
-\section{Podstawowe pojęcia}
-
-\chapter{Projekt narzędzia \emph{Funcheck}}
-\label{project}
-
-W niniejszym rozdziale zostanie przedstawiony ogólny projekt narzędzia
-\emph{Funcheck}. Zostaną opisane poszczególne fazy przetwarzania
-danych o weryfikowanym systemie oraz narzędzia, które zostały użyte w 
-czasie tworzenia programu. 
-
-\section{Architektura narzędzia}
+As mentioned in the previous section, \todo{check if it is previous}
+the checkers which make use of the Checker Framework should build a
+hierarchy of type annotations. 
 
 
 
-\section{Weryfikacja oparta o systemy typów}
 
-Jedno z podejść do zagadnienia weryfikacji własności programów polega
-na opracowaniu odpowiedniego systemu typów charakteryzujących
-syntaktyczne elementy języka. W ten sposób problem sprawdzania
-żądanych własności systemu informatycznego można sprowadzić do
-problemu przypisania typów. To podejście było wykorzystane na przykład
-do zapewniania bezpieczeństwa i żywotności w systemach współbieżnych
-przez Naoki Kobayashiego \cite{tb-concurrent}. Analogicznej metody ten
-sam autor użył również do weryfikacji pewności uwierzytelnienia w
-protokołach kryptograficznych \cite{tb-cryptographic}.
-
-Zostały również opracowane systemy typów dla weryfikacji własności
-omawianych w niniejszej pracy. System typów dla niemutowalności
-obiektów stworzyli C. Haack, E. Poll, J. Schäfer i A. Schubert
-\cite{immutability}. System typów dla weryfikacji funkcyjności metod
-powstaje natomiast na Wydziale MIM UW, przy udziale dr. dr. Jacka
-Chrząszcza i Aleksego Schuberta; niniejsza praca jest w dużej mierze
-oparta o nieopublikowany szkic ich pracy \emph{Functional Java}.
-
-\chapter{System typów dla zapewniania funkcyjności}
-\label{type-system}
-
-\chapter{Przykłady działania programu}
-\label{verification-results}
-
-\chapter{Podsumowanie}
-\label{conclusion}
-
-\appendix
-
-\chapter{Załącznik 1} %TODO out?
-
-\addcontentsline{toc}{chapter}{Bibliografia}
+\addcontentsline{toc}{chapter}{References}
 \bibliography{biblio.bib}{}
 \bibliographystyle{plain}
 
