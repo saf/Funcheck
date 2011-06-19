@@ -4,6 +4,7 @@ import checkers.flow.Flow;
 import checkers.flow.GenKillBits;
 import checkers.fun.quals.Anonymous;
 import checkers.fun.quals.Immutable;
+import checkers.fun.quals.ImmutableClass;
 import checkers.fun.quals.ReadOnly;
 import checkers.fun.quals.WriteLocal;
 import checkers.types.AnnotatedTypeMirror;
@@ -82,6 +83,18 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 type.addAnnotation(checker.NOT_THIS);
             }
 
+            /* Resolve @Myaccess to the access rights of the receiver */
+            if (receiverType != null && mType.getReturnType().hasAnnotation(checker.MYACCESS)) {
+                type.removeAnnotation(checker.MYACCESS);
+                if (receiverType.hasAnnotation(checker.IMMUTABLE)) {
+                    type.addAnnotation(checker.IMMUTABLE);
+                } else if (receiverType.hasAnnotation(checker.MYACCESS)) {
+                    type.addAnnotation(checker.MYACCESS);
+                } else if (receiverType.hasAnnotation(checker.MUTABLE)) {
+                    type.addAnnotation(checker.MUTABLE);
+                }
+            }
+
             /* When a method of a @Rep object returns @Peer, the result is @Rep. */
             if (receiverType != null && mType.getReturnType().hasAnnotation(checker.PEER)) {
                 type.removeAnnotation(checker.PEER);
@@ -101,11 +114,24 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             type.addAnnotation(checker.NOT_THIS);
         } else if (tree.getKind() == Tree.Kind.MEMBER_SELECT) {
 
-            /* When accessing a @Peer field of a @Rep object, the result is @Rep */
             MemberSelectTree mst = (MemberSelectTree) tree;
             Element elem = TreeUtils.elementFromUse(mst);
             AnnotatedTypeMirror elemType = getAnnotatedType(elem);
             AnnotatedTypeMirror expElemType = getAnnotatedType(mst.getExpression());
+
+            /* Resolve @Myaccess to the access rights of expElem */
+            if (elemType.hasAnnotation(checker.MYACCESS)) {
+                type.removeAnnotation(checker.MYACCESS);
+                if (expElemType.hasAnnotation(checker.IMMUTABLE)) {
+                    type.addAnnotation(checker.IMMUTABLE);
+                } else if (expElemType.hasAnnotation(checker.MYACCESS)) {
+                    type.addAnnotation(checker.MYACCESS);
+                } else if (expElemType.hasAnnotation(checker.MUTABLE)) {
+                    type.addAnnotation(checker.MUTABLE);
+                }
+            }
+
+            /* Resolve @Peer to the owner of expElem */
             if (elemType.hasAnnotation(checker.PEER)) {
                 type.removeAnnotation(checker.PEER);
                 if (expElemType.hasAnnotation(checker.REP)) {
@@ -127,6 +153,15 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
     @Override
     public AnnotatedTypeMirror getAnnotatedType(Element elt) {
         AnnotatedTypeMirror type = super.getAnnotatedType(elt);
+
+        /* Resolve @Myaccess on @ImmutableClasses to @Immutable */
+        TypeElement enclosingClass = ElementUtils.enclosingClass(elt);
+        if (enclosingClass.getAnnotation(ImmutableClass.class) != null
+                && type.hasAnnotation(checker.MYACCESS)) {
+            type.removeAnnotation(checker.MYACCESS);
+            type.addAnnotation(checker.IMMUTABLE);
+        }
+
         if (elt.getKind() == ElementKind.PARAMETER) {
             if (state.inConstructor()) {
                 type.addAnnotation(checker.NOT_THIS);
@@ -134,6 +169,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 type.addAnnotation(checker.MAYBE_THIS);
             }
         }
+
         if (!type.hasAnnotation(checker.REP) && !type.hasAnnotation(checker.PEER)
                 && (elt.getKind() == ElementKind.FIELD || elt.getKind() == ElementKind.PARAMETER
                     || elt.getKind() == ElementKind.LOCAL_VARIABLE)) {
@@ -229,6 +265,23 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         } else if (type instanceof AnnotatedArrayType) {
             AnnotatedArrayType art = (AnnotatedArrayType) type;
             addMutableAnnotation(art.getComponentType());
+        }
+    }
+
+
+    /**
+     * Resolve the @Myaccess type using the access rights type of an enclosing object.
+     */
+    protected void resolveMyaccess(AnnotatedTypeMirror child, AnnotatedTypeMirror parent) {
+        if (child.hasAnnotation(checker.MYACCESS)) {
+            child.removeAnnotation(checker.MYACCESS);
+            if (parent.hasAnnotation(checker.IMMUTABLE)) {
+                child.addAnnotation(checker.IMMUTABLE);
+            } else if (parent.hasAnnotation(checker.MYACCESS)) {
+                child.addAnnotation(checker.MYACCESS);
+            } else if (parent.hasAnnotation(checker.MUTABLE)) {
+                child.addAnnotation(checker.MUTABLE);
+            }
         }
     }
 

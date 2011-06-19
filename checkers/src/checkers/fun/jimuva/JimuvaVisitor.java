@@ -113,6 +113,11 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             checker.report(Result.failure("public.field.of.immutable.class",
                     el.getSimpleName(), state.getCurrentClassName()), el);
         }
+        if (el.getKind().isField()
+                && type.hasAnnotation(checker.REP)
+                && type.hasAnnotation(checker.MUTABLE)) {
+            checker.report(Result.failure("mutable.rep.field", el.getSimpleName()), el);
+        }
         return super.visitVariable(node, p);
     }
 
@@ -154,6 +159,26 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
     @Override
     public Void visitMethod(MethodTree node, Void p) {
+
+        /* Static methods and constructors cannot have @Myaccess parameters
+        or return a @Myaccess result */
+        AnnotatedExecutableType type = atypeFactory.getAnnotatedType(node);
+        ExecutableElement elt = TreeUtils.elementFromDeclaration(node);
+        if (elt.getModifiers().contains(Modifier.STATIC) || type.getReturnType() == null) {
+            if (type.getReturnType() != null
+                    && type.getReturnType().hasAnnotation(checker.MYACCESS)) {
+                checker.report(Result.failure("static.method.returns.myaccess",
+                        node.getName()), node);
+            }
+            for (AnnotatedTypeMirror pt : type.getParameterTypes()) {
+                if (pt.hasAnnotation(checker.MYACCESS)) {
+                    checker.report(Result.failure(type.getReturnType() == null
+                            ? "constructor.myaccess.parameter"
+                            : "static.method.myaccess.parameter",
+                            node.getName()), node);
+                }
+            }
+        }
         state.enterMethod(node);
         try {
             return super.visitMethod(node, p);
@@ -171,11 +196,14 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
 //        System.err.println(receiver.toString() + " ...---> " + calledMethod.toString());
 
-        /* Method calls cannot alter the inner representation of @Immutable objects */
+        /*
+         * When inside a @ReadOnly method, we cannot modify @Myaccess objects, as the access 
+         * rights variable could be instantiated to @Immutable.
+         */
         if (state.isCurrentMethodReceiver(checker.IMMUTABLE)
-                && receiver != null && receiver.hasAnnotation(checker.REP)
+                && receiver != null && receiver.hasAnnotation(checker.MYACCESS)
                 && calledMethodReceiver != null && !calledMethodReceiver.hasAnnotation(checker.IMMUTABLE)) {
-            checker.report(Result.failure("nonreadonly.call.on.rep",
+            checker.report(Result.failure("nonreadonly.call.on.myaccess.in.readonly",
                     calledMethod.getElement().getSimpleName().toString(),
                     calledMethodReceiver.getElement().getSimpleName().toString()), node);
         }
@@ -216,6 +244,19 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         List<AnnotatedTypeMirror> refinedRequiredArgs = new LinkedList<AnnotatedTypeMirror>();
         for (AnnotatedTypeMirror arg : requiredArgs) {
             AnnotatedTypeMirror refined = annoTypes.deepCopy(arg);
+            
+            /* Resolve @Myaccess annotations on arguments to the access rights of receiver */
+            if (refined.hasAnnotation(checker.MYACCESS)) {
+                if (state.isReceiver(checker.IMMUTABLE)) {
+                    refined.removeAnnotation(checker.MYACCESS);
+                    refined.addAnnotation(checker.IMMUTABLE);
+                } else if (state.isReceiver(checker.MUTABLE)) {
+                    refined.removeAnnotation(checker.MYACCESS);
+                    refined.addAnnotation(checker.MUTABLE);
+                }
+            }
+
+            /* Resolve @Peer annotations on arguments relative to the receiver */
             if (refined.hasAnnotation(checker.PEER)) {
                 if (state.isReceiver(checker.REP)) {
                     refined.removeAnnotation(checker.PEER);

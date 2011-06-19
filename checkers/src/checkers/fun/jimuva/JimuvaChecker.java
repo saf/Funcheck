@@ -15,6 +15,7 @@ import com.sun.source.tree.CompilationUnitTree;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Map;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.tools.Diagnostic.Kind;
@@ -42,7 +43,8 @@ public class JimuvaChecker extends BaseTypeChecker {
     protected AnnotationUtils annotationFactory;
     protected JimuvaVisitorState state;
 
-    public AnnotationMirror IMMUTABLE, MUTABLE, READONLY, REP, PEER, WORLD, 
+    public AnnotationMirror IMMUTABLE, MUTABLE, MYACCESS, 
+            READONLY, REP, PEER, WORLD,
             ANONYMOUS, IMMUTABLE_CLASS,
             THIS, NOT_THIS, MAYBE_THIS,
             SAFE;
@@ -52,6 +54,7 @@ public class JimuvaChecker extends BaseTypeChecker {
         annotationFactory = AnnotationUtils.getInstance(processingEnv);
         IMMUTABLE  = annotationFactory.fromClass(Immutable.class);
         MUTABLE    = annotationFactory.fromClass(Mutable.class);
+        MYACCESS   = annotationFactory.fromClass(Myaccess.class);
         READONLY   = annotationFactory.fromClass(ReadOnly.class);
         REP        = annotationFactory.fromClass(Rep.class);
         PEER       = annotationFactory.fromClass(Peer.class);
@@ -63,6 +66,12 @@ public class JimuvaChecker extends BaseTypeChecker {
         MAYBE_THIS = annotationFactory.fromClass(MaybeThis.class);
         SAFE       = annotationFactory.fromClass(Safe.class);
         state = new JimuvaVisitorState();
+
+        Map<String, String> options = processingEnv.getOptions();
+        for (String s : options.keySet()) {
+            System.err.println(s + " ----> " + options.get(s));
+        }
+
         super.init(processingEnv);
     }
 
