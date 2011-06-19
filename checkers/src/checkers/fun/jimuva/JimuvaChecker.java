@@ -16,8 +16,10 @@ import checkers.util.GraphQualifierHierarchy;
 import com.sun.source.tree.CompilationUnitTree;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.processing.ProcessingEnvironment;
 import javax.lang.model.element.AnnotationMirror;
 import javax.tools.Diagnostic.Kind;
@@ -44,6 +46,7 @@ public class JimuvaChecker extends BaseTypeChecker {
 
     protected AnnotationUtils annotationFactory;
     protected JimuvaVisitorState state;
+    protected Boolean lenientUpcasting;
 
     public AnnotationMirror BOTTOM, IMMUTABLE, MUTABLE, MYACCESS,
             READONLY, REP, PEER, WORLD, OWNEDBY,
@@ -72,9 +75,13 @@ public class JimuvaChecker extends BaseTypeChecker {
         SAFE       = annotationFactory.fromClass(Safe.class);
         state = new JimuvaVisitorState();
 
+        lenientUpcasting = false;
         Map<String, String> options = processingEnv.getOptions();
-        for (String s : options.keySet()) {
-            System.err.println(s + " ----> " + options.get(s));
+        if (options.containsKey("allow.upcast")) {
+            String value = options.get("allow.upcast");
+            if (value == null || value.equals("true") || value.equals("1")) {
+                lenientUpcasting = true;
+            }
         }
 
         super.init(processingEnv);
@@ -119,6 +126,15 @@ public class JimuvaChecker extends BaseTypeChecker {
         } else {
             message(Kind.NOTE, null, String.format(msg, args));
         }
+    }
+
+    @Override
+    public Set<String> getSupportedOptions() {
+        return Collections.singleton("allow.upcast");
+    }
+
+    public Boolean allowUpcast() {
+        return lenientUpcasting;
     }
 
     public static class JimuvaQualifierHierarchy extends GraphQualifierHierarchy {

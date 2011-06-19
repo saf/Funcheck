@@ -41,6 +41,7 @@ public class Immutability {
         immutable = new /*@Immutable*/ IntHolder(42);   /* This is OK! */
         @Mutable IntHolder mutable = immutable;         /* Error */
         mutable = new IntHolder(21);
+        immutable = mutable;                            /* OK if upcasting allowed */
 
         System.out.println("Immutable: " + immutable.get().toString());
         System.out.println("Mutable: " + mutable.get().toString());

@@ -174,11 +174,12 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
         AnnotatedTypeMirror varCopy = annoTypes.deepCopy(varType);
 
-        /* An object cannot lose or gain the @Immutable annotation */
-        if (varCopy.hasAnnotation(checker.MUTABLE)
-                && valueType.hasAnnotation(checker.IMMUTABLE)) {
-            checker.report(Result.failure(errorKey, valueType.toString(), varType.toString()), valueTree);
-        } else {
+        /* Generally, an object cannot lose or gain the @Immutable annotation. This is
+           enforced because @Immutable and @Mutable are uncomparable. However, the user may
+           want to allow for upcasting @Mutable values to @Immutable references using the "allow.upcast" 
+           option. */
+        if (checker.allowUpcast() && varCopy.hasAnnotation(checker.IMMUTABLE)
+                && valueType.hasAnnotation(checker.MUTABLE)) {
             varCopy.removeAnnotation(checker.IMMUTABLE);
         }
 
