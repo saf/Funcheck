@@ -1,12 +1,21 @@
 \documentclass{pracamgr}
 
+% Encoding and charsets
 \usepackage[utf8]{inputenc}
 \usepackage{t1enc}
-\usepackage{alltt}
+
+% Utility packages
 \usepackage{url}
-\usepackage{tikz}
 \usepackage{subfigure}
+\usepackage{color}
+
+% Tikz
+\usepackage{tikz}
 \usetikzlibrary{shapes,arrows}
+
+% Listings configuration 
+\usepackage{listings}
+\lstset{language=Java,columns=fullflexible, basicstyle=\tt, xleftmargin=1cm}
 
 \author{Sławomir Rudnicki}
 \nralbumu{248277}
@@ -29,7 +38,7 @@
 
 \newtheorem{defi}{Definicja}[section]
 
-\newcommand{\todo}[1]{}
+\newcommand{\todo}[1]{{\color{red} [#1!] }}
 
 \newenvironment{code}{\begin{center}\begin{alltt}}{\end{alltt}\end{center}}
 
@@ -37,7 +46,7 @@
 \maketitle
 
 \begin{abstract}
-  Abstract %TODO
+  \todo{Abstract}
 \end{abstract}
 
 \tableofcontents
@@ -103,6 +112,7 @@ special identifiers and variables:
 \end{itemize}
 
 \subsection{Auxiliary specifications}
+\label{sub:jimuva-aux}
 
 In addition to the immutability and ownership specifications for
 objects, Jimuva introduces several other annotations that apply to
@@ -115,7 +125,7 @@ immutable, i.e. access to them must be read-restricted.
 
 \subsubsection{Read-only methods}
 
-The \texttt{rdonly} attribute of a method signifies that the receiver
+The \texttt{rdonly} attribute of a method indicates that the receiver
 (the object referenced by \texttt{this}) must not be modified within
 the method's body.
 
@@ -128,9 +138,10 @@ such a constructor would pass a reference to the constructed object to
 the outside world, a foreign object could witness two different states
 of the object, breaking the immutability property. All constructors of
 an immutable class are verified for anonymity in
-Jimuva. \todo{reference?}
+Jimuva.
 
 \subsubsection{Write-local constructors}
+\label{sub:jimuva-wrlocal}
 
 Java visibility modifiers (\texttt{private}, \texttt{public} and
 \texttt{protected}) constrain visibility with regards to classes
@@ -144,7 +155,7 @@ visibility modifiers, which are now to be understood as per-instance
 constraints.
 
 The concept of write-locality was deemed unneccessary in
-JimuvaChecker, as explained in Section \ref{wrlocal}.
+JimuvaChecker, as explained in Section \ref{sub:mirroring-writelocal}.
 
 \subsection{Ownership polymorphism}
 
@@ -206,10 +217,66 @@ processors for the extended syntax.
 JimuvaChecker, the checker tool created as part of our work, was
 implemented using the Checker Framework.
 
-Section \ref{sec:framework} briefly describes the main concepts of the
-Checker Framework and some of the syntax extensions introduced by JSR
-308. Section \ref{sec:checking} details on the type system and
-verification implemented in JimuvaChecker.
+The following section lists some of the syntax extensions introduced
+by JSR 308 which are crucial to the functioning of our checker.
+Section \ref{sec:framework} proceeds to describe the main concepts of
+the Checker Framework. Section \ref{sec:checking} details on the type
+system and verification implemented in JimuvaChecker.
+
+\section{JSR 308}
+\label{sec:jsr308}
+
+JSR 308 is a specification request which regards an extension to the
+syntax of Java annotations. First proposed in 2006, it was meant to
+become a part of the Java 7 standard. Although it was not incorporated
+into Java 7, the extension proves to be especially useful in the field
+of program verification. This work relies on the enhancements proposed
+in JSR 308.
+
+The JSR allows annotations to appear on any occurrence of a
+type. Below, we list the syntactic constructs originating from this
+extension which are the most useful for the analysis of JimuvaChecker,
+along with examples of their use. Please refer to \ref{jsr308} for a
+complete discussion of the syntax changes. 
+
+\begin{itemize}
+\item \textbf{Object creation.} The type of objects created using the
+  \texttt{new} operator may be annotated:
+  \begin{center} 
+    \texttt{x = new @Important Document()}
+  \end{center}
+\item \textbf{Method receivers.} The type of a method's receiver
+  object may be annotated by putting the annotations after the list of
+  arguments:
+  \begin{center} 
+    \texttt{void process(Document x) @ReadOnly \{ ... \}}
+  \end{center}
+\item \textbf{Array levels.} The user may annotate chosen levels of a
+  multidimensional array. The semantics of such annotations are best
+  shown on the following examples:
+  \begin{itemize}
+  \item Two-dimensional array of read-only documents: 
+    \begin{center}
+      \texttt{@Readonly Document [][]}
+    \end{center}
+  \item A read-only array of Document arrays:
+    \begin{center}
+      \texttt{Document @ReadOnly [][]}
+    \end{center}
+  \item An array of read-only arrays of Documents:
+    \begin{center}
+      \texttt{Document [] @ReadOnly []}
+    \end{center}
+  \end{itemize}
+\item \textbf{Arguments of generic types and polymorphic methods.} The
+  formal parameters of generic types and polymorphic methods may be
+  annotated, as well as the actual parameters passed to a generic type
+  when it is instantiated:
+  \begin{center}
+    \texttt{x = new LinkedList<@NonNull @ReadOnly String>()}
+  \end{center}
+\end{itemize}
+
 
 \section{The Checker Framework}
 \label{sec:framework}
@@ -245,6 +312,7 @@ verification implemented in JimuvaChecker.
     A to B indicates that A is a subtype of B.}
   \label{fig:example-checker-hierarchy}
 \end{figure}
+
 
 The Checker Framework is a tool which can be used to create new
 annotation processors for Java. Basically, the checkers extend the
@@ -337,7 +405,199 @@ be easy for the purpose of verifying immutability properties.
 
 As mentioned in the previous section, \todo{check if it is previous}
 the checkers which make use of the Checker Framework should build a
-hierarchy of type annotations. 
+hierarchy of type annotations. Such a hierarchy has been created in
+JimuvaChecker, along with rules which need to be enforced in order to
+ensure immutability and ownership-related correctness. The following
+sections elaborate upon the mapping from Jimuva to this hierarchy and
+may be considered as a discussion of the syntax of the language
+JimuvaChecker works upon.
+
+\subsection{Modelling immutability specifications}
+
+The immutability specifications of Jimuva are mapped into three type
+annotations as shown in Table \ref{tab:mapping-immut}. 
+
+\begin{table}[htb]
+  \centering
+  \begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{Jimuva type} & \textbf{Description} & \textbf{Java annotated type} \\
+    \hline \hline
+    \texttt{C<rdwr>} & Unrestricted & \texttt{@Mutable C} \\
+    \texttt{C<myaccess>} & Same as referencing object & \texttt{@Myaccess C} \\
+    \texttt{C<rd>} & Read-restricted & \texttt{@Immutable C} \\
+    \hline
+  \end{tabular}
+  \caption{Mapping of Jimuva type specifications into Java annotated types.}
+  \label{tab:mapping-immut}
+\end{table}
+
+Note that \texttt{@Immutable} objects must be created as such, using
+the syntax introduced by JSR 308, e.g.:
+\begin{center}
+  \texttt{@Immutable C x = new @Immutable C()}
+\end{center}
+
+If no access rights type annotation is specified for an object, the
+type annotation will default to \texttt{@Mutable}. Therefore, there is
+no need for an user to insert the \texttt{@Mutable} annotation in
+their code, though they may want to emphasise the mutability of a
+particular object.
+
+There are several limitations on the use of access rights annotations
+to be checked by JimuvaChecker:
+\begin{itemize}
+\item \textbf{Arrays must be \texttt{@Mutable}.} An object of array type
+  \texttt{C []} has no constructor visible to the outside
+  world. Therefore, there would be no way to initialize the contents
+  of an \texttt{@Immutable} array other than by a static initializer,
+  \begin{table}[htb]
+    \centering
+
+    \caption{Mapping of Jimuva ownership specifications into Java annotated types.}
+    
+  \end{table}
+  which is too limited for most uses. 
+\item \textbf{\texttt{@Myaccess} is invalid on static members.} As in
+  Jimuva, the \texttt{@Myaccess} annotation is designed to be an
+  access rights variable which is instantiated to the access rights of
+  another object which references the given object. The notion of a
+  \emph{referencing object} is invalid in the case of static members
+  of classes, parameters of static methods and local variables
+  declared inside static methods. JimuvaChecker does not permit
+  \texttt{@Myaccess} annotations on those elements. 
+\end{itemize}
+
+Of course, the access rights annotations may be use on every
+occurrence of a type. We might for example constrain the access rights
+for a method parameter or the returned value, as shown in the
+following listing:
+\begin{lstlisting}
+public class B {
+  protected @Myaccess A a;
+
+  void set(@Myaccess A a) {
+    this.a = a;
+  }
+
+  @Myaccess A get() {
+    return this.a;
+  }
+}
+\end{lstlisting}
+Note that the \texttt{@Myaccess} will be instantiated in a given
+object of class $B$ to whatever access rights the object has. If the
+object is \texttt{@Immutable}, JimuvaChecker will enforce that the
+value returned from \texttt{get()} and the value passed to
+\texttt{set()} as a parameter are also immutable.
+
+\subsection{Modelling auxiliary specifications}
+
+The auxiliary specifications for classes and methods described in
+Section \ref{sub:jimuva-aux} are mirrored in the JimuvaChecker's type
+system in the following way: 
+
+\subsubsection{Immutable classes}
+
+The \texttt{@ImmutableClass} annotation may precede any class
+declaration, including local classes and member classes, e.g.:
+
+\begin{lstlisting}
+@ImmutableClass
+public class C {
+  ...
+}
+\end{lstlisting}
+
+\subsubsection{Read-only methods}
+
+The user may constrain a method not to modify the object it is called
+on by preceding its declaration with the \texttt{@ReadOnly} annotation:
+
+\begin{lstlisting}
+@ReadOnly public A getX() { 
+  return x; 
+}
+\end{lstlisting}
+This annotation is equivalent (and internally translated by Jimuva) to 
+annotating the receiver type of the method with \texttt{@Immutable}.
+
+\subsubsection{Anonymous constructors}
+
+Similarly to the \texttt{@ReadOnly} annotation on methods,
+constructors may be annotated with \texttt{@Anonymous}, which
+indicates that the constructor should be checked for not leaking
+references to \texttt{this} to the outside world.
+
+\subsubsection{Write-local constructors}
+\label{sub:mirroring-writelocal}
+
+In JimuvaChecker, the notion of write-local constructors, as described
+in Section \ref{sub:jimuva-wrlocal}, is unneccessary and, as a
+consequence, absent. The fact that visibility modifiers are understood
+\emph{per class}, as it is done in Java, and not \emph{per object},
+does pose a problem, but not one that is related solely to
+constructors. Let us consider the relevant example brought up by Haack
+et al.:
+\begin{lstlisting}
+immutable class Wrong {
+  Mutable<this> m; 
+  rdonly int get() { m.get() }
+  anon wrlocal Wrong.k(Wrong o) {
+    this.m = new Mutable<this>.k(o.get()); 
+    o.m.set(23); /* side-effect on other object */
+  }
+}
+\end{lstlisting}
+The authors argue that constructors must be prohibited from calling
+non-\texttt{rdonly} methods on members owned by other
+objects. However, the same example could be contrived if
+\texttt{Wrong.k} were a method rather than a constructor. Apparently,
+the actual problem lies in the fact that the constructor may access
+the field \texttt{m} which is a part of the internal representation of
+the object \texttt{o}. In JimuvaChecker, we prohibit all objects from
+accessing the internal representation of another object, even if such
+access would be enabled by Java's member visibility mechanism. As a
+result, the \texttt{wrlocal} annotation is unneccessary, because all
+methods and constructors are write-local in the sense introduced in
+Jimuva.
+
+Section \ref{sec:checking-rep} offers more insight on how internal
+representation of objects is protected in JimuvaChecker. 
+
+
+\subsection{Modelling ownership specifications}
+
+The ownership specifications introduced in Jimuva are very liberal: an
+object may be owned by any other object within its scope. \todo{true?}
+There are several ownership variables which can be used in place of
+object identifiers in the ownership specification of an object. 
+
+Table \ref{tab:mapping-owner} shows how the different possible
+ownership specifications are reflected into Java type annotations.
+\begin{table}[htb]
+  \centering
+  \begin{tabular}{|l|l|l|}
+    \hline
+    \textbf{Jimuva type} & \textbf{Description} & \textbf{Java annotated type} \\
+    \hline \hline 
+    \texttt{C<this>} & owned by the referencing object & \texttt{@Rep C} \\
+    \texttt{C<myowner>} & same owner as the referencing object & \texttt{@Peer C} \\
+    \texttt{C<world>} & no owner & \texttt{@World C} (default) \\
+    \texttt{C<v>} (general case) & owned by \texttt{v} & \texttt{@OwnedBy(''v'') C} \\
+    \hline
+  \end{tabular}
+  \caption{Mapping Jimuva ownership specifications into Java annotated types}
+  \label{tab:mapping-owner}
+\end{table}
+If no ownership specification is given for an object, the type
+annotation defaults to \texttt{@World}.
+
+The Java annotations only allow simple types to be specified as their
+parameters. As a consequence, the specification of the owner object
+introduced by the \texttt{@OwnedBy} annotation must be limited.
+
+\subsection{Modelling polymorphic methods}
 
 
 
