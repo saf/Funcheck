@@ -15,7 +15,9 @@
 
 % Listings configuration 
 \usepackage{listings}
-\lstset{language=Java,columns=fullflexible, basicstyle=\tt, xleftmargin=1cm}
+\lstset{language=Java,columns=fullflexible, xleftmargin=1cm,}
+% \renewcommand{\texttt}{\textsf}
+
 
 \author{Sławomir Rudnicki}
 \nralbumu{248277}
@@ -36,9 +38,9 @@
 
 \keywords{Java, immutability, ownership, verification, Jimuva}
 
-\newtheorem{defi}{Definicja}[section]
+\newtheorem{defi}{Definition}[section]
 
-\newcommand{\todo}[1]{{\color{red} [#1!] }}
+\newcommand{\todo}[1]{{\color{red} [#1] }}
 
 \newenvironment{code}{\begin{center}\begin{alltt}}{\end{alltt}\end{center}}
 
@@ -468,7 +470,7 @@ to be checked by JimuvaChecker:
   \texttt{@Myaccess} annotations on those elements. 
 \end{itemize}
 
-Of course, the access rights annotations may be use on every
+Of course, the access rights annotations may be used on every
 occurrence of a type. We might for example constrain the access rights
 for a method parameter or the returned value, as shown in the
 following listing:
@@ -539,7 +541,7 @@ consequence, absent. The fact that visibility modifiers are understood
 does pose a problem, but not one that is related solely to
 constructors. Let us consider the relevant example brought up by Haack
 et al.:
-\begin{lstlisting}
+\begin{lstlisting}[morekeywords={immutable, anon, wrlocal, rdonly}]
 immutable class Wrong {
   Mutable<this> m; 
   rdonly int get() { m.get() }
@@ -591,11 +593,208 @@ ownership specifications are reflected into Java type annotations.
   \label{tab:mapping-owner}
 \end{table}
 If no ownership specification is given for an object, the type
-annotation defaults to \texttt{@World}.
+annotation defaults to \texttt{@World}. The user does not need to use
+the \texttt{@World} annotation in their code.
 
-The Java annotations only allow simple types to be specified as their
-parameters. As a consequence, the specification of the owner object
-introduced by the \texttt{@OwnedBy} annotation must be limited.
+\subsubsection{Encapsulation of representation}
+
+JimuvaChecker implements the concept of \emph{encapsulation of
+  representation}. The objects which are pointed to by references
+marked with the \texttt{@Rep} annotation are considered a part of the
+internal representation of the enclosing object. As such, they are
+protected from being accessed from outside the enclosing
+object. Section \ref{sec:checking-owner} provides more details on the
+mechanism used to enforce encapsulation of representation in
+JimuvaChecker. 
+
+It should be noticed that encapsulation of representation proves a
+hindrance to the language using it. Some real-life constructs which
+would make use of internal representation cannot be expressed by means
+of \texttt{@Rep} only. The most prominent class of examples of such
+limitations are collections (understood as pointer structures such as
+lists) of elements which would be protected from outside access using
+the \texttt{@Rep} ownership specification. 
+
+\lstinputlisting[float, label={lst:stack-rep}, caption={An erroneous
+  implementation of a stack whose element are protected from outside
+  access, built using the \texttt{@Rep} annotation
+  only.}]{code/coll-rep.java}
+
+Listing \ref{lst:stack-rep} indicates the main problems with this
+approach by showing an implementation of a simple stack. If the
+stack's elements are to be protected inside the \texttt{Cell} class by
+the \texttt{@Rep} annotation, the representation protection mechanism
+will allow the method \texttt{Cell::getData} neither to return
+\texttt{data} directly nor to pass it to the copying constructor, as
+both actions may potentially expose internal representation of the
+cell to a foreign object. What is more, the implementation would
+require that the collection's elements are copied while they are
+retrieved, which makes it impossible for the whole collection
+impossible to be generic.
+
+\lstinputlisting[float, label={lst:stack-peer},
+caption={Implementation of a stack whose elements belong to the owner
+  of the stack. }]{code/coll-peer.java}
+
+The \texttt{@Peer} annotation comes to rescue by offering a way to
+protect objects from external access, while being more lenient when it
+comes to the operations permitted on the objects. Actually, protection
+of internal representation is still active, but it is taken to another
+level. By annotating them with \texttt{@Peer}, objects are
+arranged into groups sharing the same owner, and they may still only
+be accessed through the owner's interface. 
+
+This grouping lays at the base of the Universes type system introduced
+by Dietl and Müller \cite{universes}, where objects are considered to
+be in the same \emph{context} if they share owners. In their work, the
+reference types equivalent to both \texttt{@Rep} and \texttt{@Peer}
+are supertyped by \emph{read-only} references in order to allow
+non-modifying access to an object's context. In Jimuva, as well as in
+our checker, the concepts of ownership and immutability are
+orthogonal. \todo{Allow representation sharing with immutable
+  references?}
+
+Listing \ref{lst:stack-peer} shows an implementation of a stack using
+both variable ownership specifications \texttt{@Rep} and
+\texttt{@Peer}. As opposed to the previously considered
+\texttt{RepStack}, this implementation can be correctly type-checked
+in our type system. 
+
+\subsubsection{Ownership by any object}
+
+While mirroring the ownership variables does not pose a problem,
+creating a mechanism which would allow an object to be owned by any
+other object in its scope is more complicated. Since Java annotations
+only allow simple types as their parameters, the ownership
+specification has to consist in a textual description of the owner
+rather than reference the owner itself. This leads to two major
+limitations relating to the syntax as well as the semantics of the
+construct in JimuvaChecker.
+
+Firstly, due to the fact that a textual description of the owner
+object must be analysed, the range of objects which can be specified
+as owners of a given object is bound to be limited. In JimuvaChecker,
+the following objects are allowed as owners:
+\begin{itemize}
+\item \textbf{Formal parameters of enclosing methods:}
+  \begin{lstlisting}
+void changeHead(IntList list, Integer n) {
+  @OwnedBy(''list'') Integer nc = new @OwnedBy(''list'') Integer(n);
+  list.setHead(nc);
+}
+  \end{lstlisting}
+\item \textbf{Static and instance fields of enclosing classes:}
+  \begin{lstlisting}
+public class A {
+  IntList list;
+
+  void addZero() {
+    @OwnedBy(''list'') Integer zero = new @OwnedBy(''list'') Integer(0);
+    list.add(zero);
+  }
+}
+\end{lstlisting}
+\item \textbf{Static fields of member classes in the object's scope:}
+  \begin{lstlisting}
+public class A {
+  public static class B {
+    static IntList list;
+  }
+
+  @OwnedBy(''B.list'') Integer n;
+}
+\end{lstlisting}
+Note that only the fields of member classes of the classes that
+enclose the annotated reference may be used. Introducing support for
+static fields of any class visible in the scope of the reference would
+be possible with the Java reflection mechanism
+\cite{reflection}. However, this might lead to circular dependencies
+and other problems when compiling a large project. Adding
+reflection-based support for the ownership by static fields of any
+class is a possible future enhancement for the checker.
+\item \textbf{Local variables present in the object's scope:}
+\begin{lstlisting}
+IntList initList() {
+  IntList list = new IntList();
+  list.add(new @OwnedBy(''list'') Integer(0)); 
+  return list;
+}
+\end{lstlisting}
+\item \textbf{Public fields in the transitive reach of all of the
+    above objects.} For each object listed above, the user may specify
+  as owners their public fields and the public fields of the objects
+  in those public fields etc. What is more, if a member of the
+  transitive reach has an instance class, its static members and the
+  transitive reach thereof may be referenced. The string descriptions
+  of the reachable objects is constructed with the normal (dot)
+  notation for member access. All of the following annotations are
+  valid:
+  \begin{lstlisting}
+public class A {
+  public static class B {
+    public IntList list;
+  }
+  public static class C {
+    static B b;
+    public B d;
+  }
+  public class E {  /* Instance class */
+    static IntList list
+  }
+  
+  @OwnedBy(''C.b.list'') Integer n;
+  @OwnedBy(''E.list'') Integer m;
+  void process() {
+    C x = new C();
+    @OwnedBy(''x.d.list'') Integer p;
+    x.d.list.add(p);
+  }  
+}
+  \end{lstlisting}
+\end{itemize}
+
+The second limitation regarding this general case of ownership is
+connected to the semantics. Because ownership is represented by a
+string rather than a true reference to an object, we do not have a way
+of verifying that the reference described in the annotation's
+parameter does not change. Consider the following example:
+\begin{lstlisting}
+void process() {
+  IntList list = new IntList();
+  @OwnedBy(''list'') Integer n = new @OwnedBy(''list'') Integer(0);
+  list = new IntList();
+}
+\end{lstlisting}
+The reference \texttt{list} changes, but the description in the
+ownership specification for \texttt{n} does not. The \texttt{@OwnedBy}
+annotation introduces references, rather than particular objects, as
+owners. 
+
+Another related problem with the general ownership lies in the fact
+that the owner descriptions are relative to the annotated object. The
+issue here is that the same object can be referenced as the owner in
+some places in the code, while being out of scope in other places. The
+most prominent example here is the case of formal method parameters
+which are constrained to be owned by a private field of the class.
+Because JimuvaChecker follows the visibility mechanism of Java in not
+allowing owner specifications to access non-public fields, no other
+object may call such a method because it cannot build an appropriate
+argument as the requested owner is out of its scope.
+
+
+\paragraph{Encapsulation of representation} $\quad$ \\
+
+It would seem that, by introducing the general case of ownership into
+their code using the \texttt{@OwnedBy} annotation, the user forfeits
+the protection of the internal representation of objects. Indeed, the
+property that no object may witness the internal state of another
+object is violated in that case. The more important property of
+encapsulation is enforced in JimuvaChecker: the internal
+representation of an immutable object may not be
+modified. JimuvaChecker disallows a situation where the access rights
+to an object \texttt{@OwnedBy(''x'')} are less restrictive than those
+of \texttt{x} itself. More information on how this is achieved is
+available in Section \todo{Reference}.
 
 \subsection{Modelling polymorphic methods}
 

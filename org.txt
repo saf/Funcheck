@@ -36,9 +36,10 @@
    To nie bug, tylko feature. NotThis jest przy założeniu, że do tej
    pory nie przekazaliśmy żadnemu innemu obiektowi referencji do 'this'.
 
+** TODO Inferencja (co najmniej) @Myaccess na obiektach @OwnedBy przez obiekty @Myaccess.
 * Metazadania 
 ** DONE E-mail do promotora (spotkanie?)
-** TODO Załatwienie zmiany tematu pracy
+** DONE Załatwienie zmiany tematu pracy
    
 * Plan pracy
 
