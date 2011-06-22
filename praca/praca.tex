@@ -8,6 +8,7 @@
 \usepackage{url}
 \usepackage{subfigure}
 \usepackage{color}
+\usepackage{amsthm}
 
 % Tikz
 \usepackage{tikz}
@@ -15,9 +16,8 @@
 
 % Listings configuration 
 \usepackage{listings}
-\lstset{language=Java,columns=fullflexible, xleftmargin=1cm,}
+\lstset{language=Java,columns=fullflexible, xleftmargin=1cm, captionpos=b, abovecaptionskip=12pt, belowcaptionskip=12pt}
 % \renewcommand{\texttt}{\textsf}
-
 
 \author{Sławomir Rudnicki}
 \nralbumu{248277}
@@ -38,7 +38,22 @@
 
 \keywords{Java, immutability, ownership, verification, Jimuva}
 
-\newtheorem{defi}{Definition}[section]
+\newtheoremstyle{all}% name
+     {3pt}%      Space above
+     {3pt}%      Space below
+     {\rm}%         Body font
+     {}%         Indent amount (empty = no indent, \parindent = para indent)
+     {}% Thm head font
+     {:}%        Punctuation after thm head
+     {1em}%     Space after thm head: " " = normal interword space;
+           %       \newline = linebreak
+     {\textbf{#1 #2 (#3)}}%         Thm head spec (can be left empty, meaning `normal')
+
+\theoremstyle{all}
+
+\newtheorem{defi}{Definition}[chapter]
+\newtheorem{invariant}{Property}
+\newtheorem{verrule}{Rule}
 
 \newcommand{\todo}[1]{{\color{red} [#1] }}
 
@@ -58,22 +73,24 @@
 \chapter{Introduction}
 \label{chap:intro}
 
+\todo{More on immutability}
+
 \section{Jimuva}
 \label{sec:jimuva}
 
-In their work, Haack, Poll, Schäfer and Schubert \cite{haack} aim to
+In their work, Haack, Poll, Schäfer and Schubert~\cite{haack} aim to
 extend a Java-like language with specifications for object
 immutability and ownership. They also provide a type inference system
 for statically enforcing properties related to immutability.
 
 This section aims to present the features of Jimuva which are
-important to this work. Please refer to \cite{haack} for a
+important to this work. Please refer to~\cite{haack} for a
 comprehensive specification of the syntax and semantics of the
 language. 
 
 Throughout Section \ref{sec:modelling}, we will refer to how the
 notions introduced below are reflected in the JimuvaChecker type
-system, and Section \ref{sec:checking} will deal with how the related
+system. Section \ref{sec:checking} will deal with how the related
 desired properties are verified in practice.
 
 \subsection{Immutability and ownership specifications}
@@ -134,7 +151,7 @@ the method's body.
 \subsubsection{Anonymous constructors}
 
 An \emph{anonymous} constructor does not leak references to
-\texttt{this} to other objects \cite{vitek}. The body of a constructor
+\texttt{this} to other objects~\cite{vitek}. The body of a constructor
 is the place where even immutable objects still mutate. Therefore, if
 such a constructor would pass a reference to the constructed object to
 the outside world, a foreign object could witness two different states
@@ -161,6 +178,8 @@ JimuvaChecker, as explained in Section \ref{sub:mirroring-writelocal}.
 
 \subsection{Ownership polymorphism}
 
+\label{sec:jimuva:poly}
+
 Jimuva allows for \emph{owner-polymorphic} methods, which have
 parameters whose owner objects may be established in the invocation. A
 polymorphic method is declared in the following way:
@@ -168,7 +187,13 @@ polymorphic method is declared in the following way:
   \texttt{<x,y> void copy(C<x> from, C<y> to)}
 \end{center}
 and the object identifiers \texttt{x} and \texttt{y} may be
-instantiated to any object.
+instantiated to any object. The presence of owner-polymorphic methods
+lets ease the ownership restriction on formal parameters of
+methods. If it were not for owner polymorphism, each formal parameter
+would have a required owner specified, which would be a huge
+limitation on the usability of methods. Owner polymorphism allows for
+creating methods which are universal, such as the \texttt{copy} method
+declared above.
 
 The authors note that if one or more arguments is instantiated to
 \texttt{this}, it is important to ensure that no static aliases to
@@ -208,11 +233,11 @@ a checker tool which would satisfy the following requirements:
 In order to mirror the notions introduced in Jimuva, Java annotations
 are used in JimuvaChecker to describe properties of objects, methods
 and classes within the syntax of Java. However, the syntax of Java
-annotations, as introduced in Java 5 \cite{jls3}, is insufficient to
+annotations, as introduced in Java 5~\cite{jls3}, is insufficient to
 express all immutability-related properties. Therefore, we needed to
 use the extended annotation syntax proposed in the Java Specification
-Request 308 \cite{jsr308}. As a proof of concept, the authors of the
-JSR 308 specification created a Checker Framework \cite{checkers},
+Request 308~\cite{jsr308}. As a proof of concept, the authors of the
+JSR 308 specification created a Checker Framework~\cite{checkers},
 which can be used to build compiler plugins acting as annotation
 processors for the extended syntax.
 
@@ -287,7 +312,7 @@ complete discussion of the syntax changes.
   \centering
   
   \subfigure[Example hierarchy of type annotations]{
-    \tikzstyle{block} = [draw, rectangle, fill=blue!10]  
+    \tikzstyle{block} = [draw, rectangle, fill=blue!10, rounded corners, thick, inner sep=4pt]  
     \begin{tikzpicture}[auto, node distance=3cm, >=latex]
       \node [minimum width=6cm] at (2, 1.5) (dummy) {};
       \node [block] (top) at (2, 1.5) {@Nullable}; 
@@ -296,7 +321,7 @@ complete discussion of the syntax changes.
     \end{tikzpicture}
   }
   \subfigure[The resulting type hierarchy]{
-    \tikzstyle{block} = [draw, rectangle, fill=orange!10]  
+    \tikzstyle{block} = [draw, rectangle, fill=orange!10, rounded corners, thick, inner sep=4pt]  
     \begin{tikzpicture}[auto, node distance=3cm, >=latex]
       \node [block] (top) {@Nullable Object}; 
       \node [block, below left of=top] (left) {@NonNull Object}; 
@@ -351,7 +376,7 @@ modules:
   syntax tree (AST) of the given compilation unit and verifies
   properties based on their annotated types inferred by the annotated
   type factory. This module acts upon the AST by making use of the
-  Visitor design pattern \cite{visitor}. Of course, the properties to
+  Visitor design pattern~\cite{visitor}. Of course, the properties to
   be checked are not limited to simple subtyping checking; one may
   implement any rule which the code being compiled will be checked
   against.
@@ -363,11 +388,12 @@ file.
 \begin{figure}
   \centering
 
-  \tikzstyle{block} = [draw, rectangle, fill=orange!10, minimum width=3cm, minimum height=0.6cm]
+  \tikzstyle{block} = [draw, rectangle, fill=orange!10, minimum
+  width=3cm, minimum height=0.6cm, rounded corners, inner sep=4pt, thick]
   \begin{tikzpicture}[auto, node distance=3cm, >=latex]
     \node [block, fill=blue!10] (compiler) at (5, 5) {\texttt{javac -processor checkers.x.XChecker code.java}};
     \node [block, fill=orange!10] (checker) at (5, 4) {XChecker}; 
-    \node [block, fill=yellow!20, node distance=5cm, pin={[pin edge={to-, thin, black}] above:{source code}}] 
+    \node [block, fill=yellow!20, node distance=5cm, pin={[pin edge={latex-, thin, black}] above:{source code}}] 
     (code) at (0, 3) {\texttt{code.java}};
     \node [block] (visitor) at (3, 1) {XVisitor};
     \node [block] (factory) at (9, 1) {XAnnotatedTypeFactory};
@@ -375,8 +401,9 @@ file.
     \draw [->, dashed] (compiler) -- (checker);
     \draw [->, dashed] (checker) -- (factory);
     \draw [->, dashed] (checker) -- (visitor);
-    \draw [<->] (visitor) -- node {\parbox[c]{1cm}{\small{assign types}}} (factory) ;
-    \draw [->] (visitor) -- node {\parbox[c]{1.2cm}{\small{check} \tiny{(Visitor pattern)}}} (code);
+    \draw [->] (visitor.east) [bend left] edge node [above] {\small{elements}} (factory.west); 
+    \draw [<-] (visitor.east) [bend right] edge node [below] {\parbox[c]{1cm}{\small{assign types}}} (factory.west);
+    \draw [->] (visitor) edge node {\parbox[c]{1.2cm}{\small{check} \tiny{(Visitor pattern)}}} (code);
   \end{tikzpicture}
 
   \caption{A simplified schema of source code file analysis by a
@@ -493,6 +520,23 @@ object is \texttt{@Immutable}, JimuvaChecker will enforce that the
 value returned from \texttt{get()} and the value passed to
 \texttt{set()} as a parameter are also immutable.
 
+\paragraph{Note: \texttt{@Immutable} is not \texttt{final}} $\,$ \\
+
+There is a certain distinction between \texttt{final} references and
+\texttt{@Immutable} objects. Consider the following series of
+instructions:
+\begin{lstlisting}
+@Immutable Integer x = new @Immutable Integer(42);
+x = new @Immutable Integer(0);
+\end{lstlisting}
+Even though it might be somewhat counter-intuitive at first, the
+second assignment is perfectly valid. It is important to remember that
+the \texttt{@Immutable} annotation refers to the \emph{object} and not
+the \emph{reference}. The reference \texttt{x} changes, but the object
+remains unchanged. Of course, the reference could be made unmodifiable
+by using the \texttt{final} modifier. In that case, the second
+assignment would yield a compile-time error.
+
 \subsection{Modelling auxiliary specifications}
 
 The auxiliary specifications for classes and methods described in
@@ -608,12 +652,12 @@ mechanism used to enforce encapsulation of representation in
 JimuvaChecker. 
 
 It should be noticed that encapsulation of representation proves a
-hindrance to the language using it. Some real-life constructs which
-would make use of internal representation cannot be expressed by means
-of \texttt{@Rep} only. The most prominent class of examples of such
+hindrance to the language. Some real-life constructs which would make
+use of internal representation cannot be expressed by means of
+\texttt{@Rep} only. The most prominent class of examples of such
 limitations are collections (understood as pointer structures such as
 lists) of elements which would be protected from outside access using
-the \texttt{@Rep} ownership specification. 
+the \texttt{@Rep} ownership specification.
 
 \lstinputlisting[float, label={lst:stack-rep}, caption={An erroneous
   implementation of a stack whose element are protected from outside
@@ -636,16 +680,63 @@ impossible to be generic.
 caption={Implementation of a stack whose elements belong to the owner
   of the stack. }]{code/coll-peer.java}
 
+\begin{figure}[p]
+  \tikzstyle{object} = [matrix, draw, thick, rectangle, rounded corners, inner ysep=10pt, fill=orange!10]
+  \tikzstyle{class} = [draw, thick, rectangle, rounded corners, fill=orange!30, minimum width=2.2cm]
+  \pgfdeclarelayer{background}
+  \pgfdeclarelayer{foreground}
+  \pgfsetlayers{background,main,foreground}  
+  \begin{tikzpicture}[auto, >=latex]
+    \node [object, minimum width=2cm, fill=blue!5] (obj) at (0, 1.5) {
+      \node [draw, rectangle, inner sep=3pt, thick, minimum width=0cm] (s) {stack}; \\
+    };
+    \node [class, fill=blue!30] at (obj.north) {SomeObject};
+
+    \node [object, minimum width=2cm] (stack) at (3, 0) {
+      \node [draw, rectangle, inner sep=3pt, thick, minimum width=0cm] (hd) {head}; \\
+    };
+    \node [class] (stc) at (stack.north) {PeerStack<T>};
+
+    \draw [->] (s) [bend left, above] edge node {\small{@Rep}} (stc.north);
+
+    \foreach \c/\x in {1/6.5,2/9.5,3/12.5} {
+      \node [object, minimum width=1.5cm] (c\c) at (\x, 0.3) {
+        \node [draw, rectangle, inner ysep=3pt, outer ysep=3pt, thick, minimum width=0cm] (n\c) {next}; \\
+        \node [draw, rectangle, inner ysep=3pt, thick, minimum width=0cm] (i\c) {data}; \\
+      };
+      \node [class] (cc\c) at (c\c.north) {Cell<T>};
+      \node [class] (ci\c) at (\x, -1.5) {T};
+      \draw [->] (i\c) [bend right, anchor=west, near end] edge node {\small{@Peer}} (ci\c.north);
+    }
+    \draw [->] (hd) [bend right, below] edge node {\small{@Peer}} (c1.west);
+
+    \foreach \c/\n in {1/2,2/3} {
+      \draw [->] (n\c) [below] edge node {\small{@Peer}} (c\n);
+    }
+    
+    \begin{pgfonlayer}{background}
+      \draw (c1)+(1.5, -0.5) [draw=blue!50, fill=blue!5, thick] ellipse (6.8 and 2.5);
+    \end{pgfonlayer}
+    
+    \draw [draw=blue!50, thick, text=blue!50] (c1)+(-5.3,-0.5) [bend left, anchor=north east] 
+    edge node {\parbox{1.3cm}{context of this object}} (obj.south);
+
+  \end{tikzpicture}
+  \caption{The structure of a PeerStack. The whole collection is in
+    the context of the object holding the \texttt{stack} reference.}
+  \label{fig:peer-contexts}
+\end{figure}
+
 The \texttt{@Peer} annotation comes to rescue by offering a way to
 protect objects from external access, while being more lenient when it
 comes to the operations permitted on the objects. Actually, protection
 of internal representation is still active, but it is taken to another
-level. By annotating them with \texttt{@Peer}, objects are
-arranged into groups sharing the same owner, and they may still only
-be accessed through the owner's interface. 
+level. By annotating them with \texttt{@Peer}, objects are arranged
+into groups sharing the same owner. The objects of each group may
+still only be accessed through the owner's interface.
 
 This grouping lays at the base of the Universes type system introduced
-by Dietl and Müller \cite{universes}, where objects are considered to
+by Dietl and~Müller~\cite{universes}, where objects are considered to
 be in the same \emph{context} if they share owners. In their work, the
 reference types equivalent to both \texttt{@Rep} and \texttt{@Peer}
 are supertyped by \emph{read-only} references in order to allow
@@ -658,7 +749,10 @@ Listing \ref{lst:stack-peer} shows an implementation of a stack using
 both variable ownership specifications \texttt{@Rep} and
 \texttt{@Peer}. As opposed to the previously considered
 \texttt{RepStack}, this implementation can be correctly type-checked
-in our type system. 
+in our type system. Figure \ref{fig:peer-contexts} shows the structure
+of the collection. The \texttt{@Peer} annotation groups all cells and
+elements of the collection into the context of the object which holds
+the reference to the stack.
 
 \subsubsection{Ownership by any object}
 
@@ -724,11 +818,10 @@ IntList initList() {
     above objects.} For each object listed above, the user may specify
   as owners their public fields and the public fields of the objects
   in those public fields etc. What is more, if a member of the
-  transitive reach has an instance class, its static members and the
-  transitive reach thereof may be referenced. The string descriptions
-  of the reachable objects is constructed with the normal (dot)
-  notation for member access. All of the following annotations are
-  valid:
+  transitive reach has an instance class, its static members and their
+  transitive reach may also be referenced. The string descriptions of
+  the reachable objects are constructed with the normal Java notation
+  for member access. All of the following annotations are valid:
   \begin{lstlisting}
 public class A {
   public static class B {
@@ -737,13 +830,14 @@ public class A {
   public static class C {
     static B b;
     public B d;
+    public A a;
   }
   public class E {  /* Instance class */
     static IntList list
   }
   
-  @OwnedBy(''C.b.list'') Integer n;
-  @OwnedBy(''E.list'') Integer m;
+  @OwnedBy(''C.b.list'') Integer n;   
+  @OwnedBy(''C.a.E.list'') Integer m; 
   void process() {
     C x = new C();
     @OwnedBy(''x.d.list'') Integer p;
@@ -771,15 +865,32 @@ annotation introduces references, rather than particular objects, as
 owners. 
 
 Another related problem with the general ownership lies in the fact
-that the owner descriptions are relative to the annotated object. The
-issue here is that the same object can be referenced as the owner in
-some places in the code, while being out of scope in other places. The
-most prominent example here is the case of formal method parameters
-which are constrained to be owned by a private field of the class.
-Because JimuvaChecker follows the visibility mechanism of Java in not
-allowing owner specifications to access non-public fields, no other
-object may call such a method because it cannot build an appropriate
-argument as the requested owner is out of its scope.
+that the owner descriptions are relative to the annotated object. We
+cannot directly refer to the chosen object, but instead we have to
+follow references which are available from the scope of the annotated
+object. The resulting issue is that the same object can be referenced
+as the owner in some places of code, while being out of scope in other
+places. The most prominent example here is the case of formal method
+parameters which are constrained to be owned by a private field of the
+enclosing class:
+\begin{lstlisting}
+public class A {
+  private IntList list;
+  void add(@OwnedBy(''list'') Integer n) {
+    list.add(n);
+  }
+}
+...
+void process(A a) {
+  a.add(new @OwnedBy(''a.list'') Integer(0)); 
+                       /* ^^^^^ Illegal! @OwnedBy cannot refer to private fields */
+}
+\end{lstlisting}
+JimuvaChecker follows the visibility mechanism of Java in that it does
+not allow owner specifications to refer to non-public fields.  As a
+result, no other object may call such a method. It is impossible for a
+foreign object pass an appropriate argument, because the requested
+owner of the argument is out of the object's scope.
 
 
 \paragraph{Encapsulation of representation} $\quad$ \\
@@ -796,9 +907,126 @@ to an object \texttt{@OwnedBy(''x'')} are less restrictive than those
 of \texttt{x} itself. More information on how this is achieved is
 available in Section \todo{Reference}.
 
-\subsection{Modelling polymorphic methods}
+\subsection{Modelling owner-polymorphic methods}
 
+The Jimuva language includes \emph{owner-polymorphic} methods, which
+accept parameters with generic (variable) ownership. Let us recall the
+introductory example method from Section \ref{sec:jimuva:poly} for
+further discussion:
+\begin{center}
+  \texttt{<x,y> void copy(C<x> from, C<y> to)}
+\end{center}
 
+Java offers a seldom used mechanism of polymorphic methods, which are
+declared using a similar syntax~\cite{genericmethods}:
+\begin{lstlisting}
+static <T> void fromArrayToCollection(T[] a, Collection<T> c) {
+    for (T o : a) {
+        c.add(o);
+    }
+}
+\end{lstlisting}
+
+We might consider the following declaration for the example
+\texttt{copy} method:
+\begin{lstlisting}
+<T1 extends C, T2 extends C> void copy(T1 from, T2 to) {...}
+\end{lstlisting}
+The syntax of Jimuva lets the method's body access the actual owners
+of the parameters passed to an owner-polymorphic method. In the case
+of the above Java declaration, however, there is no way we could refer
+to the actual owners, as we can only operate on the formal type
+parameters \texttt{T1} and \texttt{T2}.
+
+Overcoming this limitation related to generic methods is difficult, if
+not impossible, without introducing changes into the Java syntax. A
+simpler approach, described below, has been adopted in JimuvaChecker.
+
+In order to introduce an owner-polymorphic method, one may annotate
+any or all of the formal parameters with \texttt{@AnyOwner}. The
+\texttt{copy} method would then be declared as follows:
+\begin{lstlisting}
+void copy(@AnyOwner C from, @AnyOwner C to) {...}
+\end{lstlisting}
+
+There is an important issue left to consider related to encapsulation
+of representation. On the one hand, it would be too strict to entirely
+prohibit passing \texttt{@Rep} objects as arguments to foreign
+methods. On the other hand, the internal representation should not
+cease to be protected from access by outside objects. Figuratively
+speaking, the caller entrusts the polymorphic method with a part of
+its representation, but it should be assured that the callee will not
+leak the object any further.
+
+Our type system must ensure that this is the case in
+JimuvaChecker. Therefore, the \texttt{@Safe} annotation was
+introduced, which is designed for use with formal parameters of
+methods. The checker allows protected objects, i.e. those annotated
+with \texttt{@Rep} and \texttt{@Peer}, to be passed to methods as
+\texttt{@Safe} parameters, but it enforces their protection by
+prohibiting the method to create \emph{static aliases} to the
+parameters \todo{or any object transitively reachable from them}. This
+concept of \emph{safe parameters} is similar to that presented by
+Sălcianu and~Rinard in their work related to method
+purity~\cite{purity}.
+
+Objects annotated with \texttt{@OwnedBy} or the implicit
+\texttt{@World} specifier are not protected from outside access and
+may be passed both as \texttt{@Safe} arguments and \texttt{@AnyOwner}
+arguments. 
+
+Section \ref{sec:checking:safety} provides more details on the
+enforcing of parameter safety in JimuvaChecker.
+
+\chapter{Verifying immutability}
+
+JimuvaChecker may be used to verify properties of programs which are
+related to the concept of object immutability. This chapter presents
+those properties, as well as the mechanism of verification.
+
+\section{Immutability properties}
+
+\subsection{Introduction}
+
+Haack et al. provide a complete small-step operational semantics of
+their simple language. Since this work aims at processing full Java,
+trying to base immutability properties on the language semantics in a
+formal way is more complicated.
+
+Several approaches have been taken to define the formal semantics of
+Java, but all of them were limited in the breadth of language
+constructs they covered. Some of the related work focused on
+developing formal semantics of small fragments of the language, or
+\emph{calculi}, some of the examples being Featherweight
+Java~\cite{javasem:feather} or the imperative core calculus
+MJ~\cite{javasem:mj}. Perhaps the most complete approach is
+Jinja~\cite{javasem:jinja}, a language aiming to model a significant
+portion of Java. There even exists an executable implementation of the
+operational semantics of Java which allows for visualisation of the
+system's execution~\cite{javasem:exec}. 
+
+Even if a complete formal specification of Java semantics existed, it
+would be out of proportion to recall it in this work. Instead, we
+state the properties to be verified by JimuvaChecker relying on the
+apprehensive but less-than-formal notion of object state defined below.
+
+\begin{defi}[Object state]
+  The \emph{state} of object $o$, or $st(o)$ is defined inductively as
+  follows:
+  \begin{itemize}
+  \item For each instance field $f$ of $o$:
+    \begin{itemize}
+    \item if $f$ is of primitive type, $f \in o$ where $f$ is
+      understood as the value of the field, 
+    \item if $f$ is of reference type, $f \in o$ where $f$ is 
+      understood as the heap address of the referenced object. 
+    \item if $f$ is 
+    \end{itemize}
+  \end{itemize}
+\end{defi}
+
+\begin{invariant}  
+\end{invariant}
 
 
 \addcontentsline{toc}{chapter}{References}
