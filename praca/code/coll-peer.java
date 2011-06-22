@@ -1,5 +1,4 @@
 public class PeerStack<T> {
-
     private static class Cell<CT> {
         private @Peer CT data;
         private @Immutable @Peer Cell next;
@@ -26,7 +25,6 @@ public class PeerStack<T> {
             return result;
         }
     }
-
     public void push(@Peer T elem) {
         head = new @Immutable @Peer Cell(elem, head);
     }
