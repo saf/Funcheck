@@ -9,6 +9,7 @@
 \usepackage{subfigure}
 \usepackage{color}
 \usepackage{amsthm}
+\usepackage{enumerate}
 
 % Tikz
 \usepackage{tikz}
@@ -39,13 +40,13 @@
 \keywords{Java, immutability, ownership, verification, Jimuva}
 
 \newtheoremstyle{all}% name
-     {3pt}%      Space above
-     {3pt}%      Space below
+     {\topsep}%      Space above
+     {\topsep}%      Space below
      {\rm}%         Body font
      {}%         Indent amount (empty = no indent, \parindent = para indent)
      {}% Thm head font
      {:}%        Punctuation after thm head
-     {1em}%     Space after thm head: " " = normal interword space;
+     {\newline}%     Space after thm head: " " = normal interword space;
            %       \newline = linebreak
      {\textbf{#1 #2 (#3)}}%         Thm head spec (can be left empty, meaning `normal')
 
@@ -986,7 +987,7 @@ those properties, as well as the mechanism of verification.
 
 \section{Immutability properties}
 
-\subsection{Introduction}
+\subsection{Preliminary discussion and definitions}
 
 Haack et al. provide a complete small-step operational semantics of
 their simple language. Since this work aims at processing full Java,
@@ -1010,23 +1011,122 @@ would be out of proportion to recall it in this work. Instead, we
 state the properties to be verified by JimuvaChecker relying on the
 apprehensive but less-than-formal notion of object state defined below.
 
+Let us begin with an auxiliary definition related to the Java memory
+model:
+\begin{defi}[Value function]
+  For an object $w$, a field identifier $f$ and program state $s$, let
+  $val_s^w(f)$ denote the value referenced by $f$. The value may be of
+  a Java primitive type (\texttt{float}, \texttt{int} etc.) or an object.
+\end{defi}
+Because we don't intend to introduce full semantics of Java, program
+state is introduced informally in the above definition, but it should
+be understood as the full information on the threads, stack frames and
+the mapping of heap addresses to values. 
+
 \begin{defi}[Object state]
-  The \emph{state} of object $o$, or $st(o)$ is defined inductively as
-  follows:
-  \begin{itemize}
-  \item For each instance field $f$ of $o$:
-    \begin{itemize}
-    \item if $f$ is of primitive type, $f \in o$ where $f$ is
-      understood as the value of the field, 
-    \item if $f$ is of reference type, $f \in o$ where $f$ is 
-      understood as the heap address of the referenced object. 
-    \item if $f$ is 
-    \end{itemize}
-  \end{itemize}
+  \label{def:state}
+  The \emph{state} of object $w$ in program state $q$ is a set $S_q(w)$
+  of objects defined inductively as follows:
+  \begin{enumerate}[(1)]
+  \item The object is in its own state: 
+    $$w \in S(w).$$
+  \item For each instance field $f$ of $w$, if $f$ is annotated with
+    \texttt{@Rep} and $val_s^w(f) = v$,
+    $$v \in S(w).$$
+  \item For each object $v$ in $S(w)$ and each field $f$ of $v$
+    annotated with \texttt{@Peer}, if $val_s^v(f) = x$, 
+    $$ x \in S(w).$$
+  \item For each object $v$ annotated with \texttt{@OwnedBy(''s'')},
+    where \texttt{s} may refer to $w$,
+    $$v \in S(w).$$
+  \end{enumerate}
+\end{defi}
+Notice that the presence of the last rule makes Definition
+\ref{def:state} broader than the one in Jimuva (cf. Definition 2
+in~\cite{haack}). We include all objects which are owned by the
+object $w$, even if these objects are not within $w$'s reach. The
+above definition includes all objects whose type in Jimuva would be
+equivalent to \texttt{C<ar, w>} for some access rights specifier
+\texttt{ar}.
+
+Even for immutable objects, the object state is subject to change
+between program states. When a new object annotated with
+\texttt{@OwnedBy($w$)} is created, the set of objects contributing
+to $w$'s state expands. This addition should not be considered as
+modification of the object, because $w$ itself remains observationally
+unchanged. We have to introduce an equivalence relation between
+program states with regards to object state:
+\begin{defi}[Object state equivalence]
+  For an object $w$, we say that two program states $q_1, q_2$ are
+  \emph{equivalent with regards to $w$}, denoted $q_1
+  \stackrel{w}{\equiv}$, iff for each object $v$ in $S_1 \cap S_2$ and
+  each field $f$ of $v$,
+  $$val_{q_1}^{v}(f) = val_{q_2}^{v}(f).$$
+\end{defi}
+With this definition, we may ignore changes made in $w$'s state by
+creating a new object $v$ owned by $w$. However, if $v$ exists in two
+program states, they are only equivalent if the state of $v$ is the
+same in both of them.
+
+It would be tempting to hasten now and say that an object is immutable
+if any two program states are equivalent with regards to the
+object. However, one has to remember that even immutable objects
+mutate while they are still in their construction phase and their
+state cannot be observed from the outside. When analyzing mutations of
+objects, we must thus limit the scope of states we consider to those
+states in which no object is still under construction:
+
+\begin{defi}[Visible states]
+  A program state $q$ is \emph{visible} for an object $w$, denoted $q
+  \in V_w$, iff $q$ is reachable and no object in $S_q(w)$ is being
+  constructed in $q$.
+\end{defi}
+On a lower level, a program state would be visible for an object $w$
+if there is no constructor stack frame of an object in $w$'s state in
+any execution thread.
+
+We are now ready to complete the preparations by stating what it means
+for an object to mutate:
+\begin{defi}[Object mutation]
+  We say object $w$ \emph{mutates} iff there are two program states
+  $q_1, q_2 \in V_w$ such that
+  $$q_1 \not\stackrel{w}{\equiv} q_2$$
 \end{defi}
 
-\begin{invariant}  
+\subsection{Immutability invariants}
+
+We will now define the immutability invariants which are proved by
+JimuvaChecker. Here, we have to distinguish between \emph{checked}
+code, which is analyzed by the checker, and general \emph{unchecked}
+code, which may interact with checked object in any manner enabled by
+the Java language.
+
+The first property relates to checked fragments of code:
+\begin{invariant}[Immutability] \label{inv:closed}
+  If an object $x$ is created \texttt{@Immutable}, e.g. by using one of
+  the following instructions:
+  \begin{center}
+    \texttt{x = new @Immutable A();}
+  \end{center}
+  \begin{center}
+    \texttt{x = new @Immutable A [5];}
+  \end{center}
+  $x$ does not mutate, provided it is only used by checked code.
 \end{invariant}
+
+Property \ref{inv:closed} is only useful if all code acting upon the
+immutable objects is checked. We may want to be able to construct
+objects which are provably immutable even when the code using them is
+unchecked. The property of \emph{immutability in an open world} is also
+pursued in JimuvaChecker:
+\begin{invariant}[Immutability in an open world]
+  If a class $C$ is annotated with \texttt{@ImmutableClass}, each
+  object of class $C$ does not mutate, provided that $C$ is not
+  illegally subclassed.
+\end{invariant}
+
+\section{The project of the checker}
+
 
 
 \addcontentsline{toc}{chapter}{References}
