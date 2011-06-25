@@ -198,20 +198,6 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             type.addAnnotation(checker.WORLD);
         }
 
-        /* @Safe elements may ignore ownership annotations */
-        if (type.hasAnnotation(checker.SAFE)) {
-            type.removeAnnotation(checker.REP);
-            type.removeAnnotation(checker.PEER);
-            type.removeAnnotation(checker.WORLD);
-            type.removeAnnotation(checker.OWNEDBY);
-        }
-
-        /* @AnyOwner elements may ignore @OwnedBy annotations */
-        if (type.hasAnnotation(checker.ANYOWNER)) {
-            type.removeAnnotation(checker.OWNEDBY);
-            type.removeAnnotation(checker.WORLD);
-        }
-
         /* Add implicit @Immutable to objects @OwnedBy @Immutable objects. */
         if (type.hasAnnotation(checker.OWNEDBY)) {
             try {
@@ -368,6 +354,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         }
 
         @Override
+        /* We need the state during Flow analysis */
         public Void scan(Tree tree, Void p) {
             if (tree != null && tree.getKind() == Tree.Kind.METHOD) {
                 try {

@@ -15,5 +15,5 @@ import java.lang.annotation.Documented;
  * @author saf
  */
 @Documented
-@SubtypeOf({})
+@SubtypeOf({Safe.class})
 public @interface Peer {}

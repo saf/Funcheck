@@ -16,7 +16,7 @@ import java.lang.annotation.RetentionPolicy;
  * @author saf
  */
 @Documented
-@SubtypeOf({})
+@SubtypeOf({AnyOwner.class})
 @TypeQualifier
 @Retention(RetentionPolicy.CLASS)
 public @interface OwnedBy {

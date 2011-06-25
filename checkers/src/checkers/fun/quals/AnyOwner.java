@@ -22,5 +22,5 @@ import java.lang.annotation.Target;
  * @author saf
  */
 @Target({ElementType.PARAMETER, ElementType.LOCAL_VARIABLE, ElementType.FIELD})
-@SubtypeOf({})
+@SubtypeOf({Safe.class})
 public @interface AnyOwner {}

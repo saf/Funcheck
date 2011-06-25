@@ -17,7 +17,7 @@
       Dostajemy fałszywy błąd (bo oczywiście x.s = y.s, ale jak to rozwiązać?
 
 ** DONE Posiadanie przez zmienne lokalne.
-** TODO Refactoring relacji pomiędzy adnotacjami własnościowymi.
+** DONE Refactoring relacji pomiędzy adnotacjami własnościowymi.
 
    Jakoś tak:
 
@@ -40,7 +40,7 @@
 ** TODO @Safe na przechodnim zasięgu
 
 @Safe powinno być inferowane na wartości zwracane z metod wołanych na @Safe obiektach i member accessach.
-
+     
 * Metazadania 
 ** DONE E-mail do promotora (spotkanie?)
 ** DONE Załatwienie zmiany tematu pracy

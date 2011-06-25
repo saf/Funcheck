@@ -14,6 +14,6 @@ import java.lang.annotation.Documented;
  *
  * @author saf
  */
-@SubtypeOf({})
+@SubtypeOf({AnyOwner.class})
 @Documented
 public @interface World {}
