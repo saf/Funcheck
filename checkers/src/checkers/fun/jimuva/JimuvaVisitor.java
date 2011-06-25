@@ -1009,6 +1009,10 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             return path != null && path.get(path.size() - 1).type.hasAnnotation(af.checker.IMMUTABLE);
         }
 
+        public Boolean isMyaccess() {
+            return path != null && path.get(path.size() - 1).type.hasAnnotation(af.checker.MYACCESS);
+        }
+
         public Boolean isFullyStatic() {
             if (path == null) {
                 return null;

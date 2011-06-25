@@ -15,7 +15,7 @@
       c = d; /* ??? */
 
       Dostajemy fałszywy błąd (bo oczywiście x.s = y.s, ale jak to rozwiązać?
-
+      
 ** DONE Posiadanie przez zmienne lokalne.
 ** DONE Refactoring relacji pomiędzy adnotacjami własnościowymi.
 
@@ -36,7 +36,7 @@
    To nie bug, tylko feature. NotThis jest przy założeniu, że do tej
    pory nie przekazaliśmy żadnemu innemu obiektowi referencji do 'this'.
 
-** TODO Inferencja (co najmniej) @Myaccess na obiektach @OwnedBy przez obiekty @Myaccess.
+** DONE Inferencja (co najmniej) @Myaccess na obiektach @OwnedBy przez obiekty @Myaccess.
 ** TODO @Safe na przechodnim zasięgu
 
 @Safe powinno być inferowane na wartości zwracane z metod wołanych na @Safe obiektach i member accessach.

@@ -205,7 +205,14 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 if (owner.isImmutable()) {
                     type.removeAnnotation(checker.MUTABLE);
                     type.removeAnnotation(checker.MYACCESS);
+                    type.removeAnnotation(checker.IMMUTABLE);
                     type.addAnnotation(checker.IMMUTABLE);
+                } else if (owner.isMyaccess()) {
+                    if (!type.hasAnnotation(checker.IMMUTABLE)) {
+                        type.removeAnnotation(checker.MUTABLE);
+                        type.removeAnnotation(checker.MYACCESS);
+                        type.addAnnotation(checker.MYACCESS);
+                    }
                 }
             } catch (JimuvaVisitor.Owner.OwnerDescriptionError err) {
                 /* Swallow the exception, it should have already been reported */
