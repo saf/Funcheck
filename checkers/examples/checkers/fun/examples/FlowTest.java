@@ -13,6 +13,7 @@ import checkers.fun.quals.Anonymous;
  */
 public class FlowTest {
 
+    @Anonymous
     public FlowTest process(FlowTest c) {
         
         FlowTest z;

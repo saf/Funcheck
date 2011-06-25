@@ -35,6 +35,10 @@ public class InternalRepresentation {
         public void copy(@Immutable IntHolder other) {
             this.n = other.n;
         }
+
+        public void safeCopy(@Safe IntHolder other) {
+            this.n = other.n; /* Illegal -- other.n is @Safe! */
+        }
     }
 
     public static class A {

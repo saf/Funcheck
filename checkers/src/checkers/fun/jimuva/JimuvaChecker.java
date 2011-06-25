@@ -34,7 +34,7 @@ import javax.tools.Diagnostic.Kind;
     /* Object and type qualifiers */ 
     Bottom.class, Mutable.class, Immutable.class, Myaccess.class,
     /* Method & constructor qualifiers */
-    ReadOnly.class, ReadWrite.class, WriteLocal.class, Anonymous.class,
+    ReadOnly.class, Anonymous.class,
     /* Field qualifiers */
     Rep.class, Peer.class, World.class, OwnedBy.class, AnyOwner.class,
     /* Annotations for tracking references to this */

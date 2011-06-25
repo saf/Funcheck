@@ -117,6 +117,15 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                     type.addAnnotation(ownerAnnotation(selOwner.asString()));
                 }
             }
+
+            /* Add @Safe annotation on values returned from calls on @Safe objects */
+            /* Only @Peer objects must be protected as @Rep cannot be returned */
+            if (receiverType != null
+                    && receiverType.hasAnnotation(checker.SAFE)
+                    && returnType.hasAnnotation(checker.PEER)) {
+                type.addAnnotation(checker.SAFE);
+            }
+            
         } else if (tree.getKind() == Tree.Kind.IDENTIFIER) {
             IdentifierTree ident = (IdentifierTree) tree;
             if (ident.getName().contentEquals("this")) {
@@ -156,6 +165,13 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 expOwner.append(elOwner);
                 type.removeAnnotation(checker.OWNEDBY);
                 type.addAnnotation(ownerAnnotation(expOwner.asString()));
+            }
+
+            /* Add @Safe annotation to members of @Safe objects to protect their transitive reach */
+            /* (Only @Rep and @Peer objects must be protected) */
+            if (expElemType.hasAnnotation(checker.SAFE)
+                    && (type.hasAnnotation(checker.PEER) || type.hasAnnotation(checker.REP))) {
+                type.addAnnotation(checker.SAFE);
             }
         }
 
