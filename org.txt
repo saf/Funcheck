@@ -41,6 +41,7 @@
 
 @Safe powinno być inferowane na wartości zwracane z metod wołanych na @Safe obiektach i member accessach.
      
+** TODO Some problems with @Bottom. Seems like @Mutable is not inferred everywhere.
 * Metazadania 
 ** DONE E-mail do promotora (spotkanie?)
 ** DONE Załatwienie zmiany tematu pracy

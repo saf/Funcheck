@@ -255,11 +255,15 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     calledMethodReceiver.getElement().getSimpleName().toString()), node);
         }
 
-        /* Disallow passing references to 'this' as arguments of foreign methods. */
-        if (state.isCurrentMethod(checker.ANONYMOUS)) {
-            checkCallAnonymous(node);
+        /* Disallow passing references to 'this' as arguments of foreign methods.
+         * and calling non-@Anonymous methods on this */
+        if (state.isCurrentMethod(checker.ANONYMOUS) && receiver != null) {
+            if (mayBeThis(receiver)) {
+                checkCallAnonymous(node);
+            } else if (mayBeForeign(receiver)) {
+                checkArgumentsAnonymous(node.getArguments());
+            }
         }
-
 
         if ((!TreeUtils.isSelfAccess(node)
                 || (receiver != null && !receiver.hasAnnotation(checker.THIS)))
@@ -576,8 +580,6 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
      * @param node
      */
     protected void checkCallAnonymous(MethodInvocationTree node) {
-        checkArgumentsAnonymous(node.getArguments());
-
         /* Check that non-@Anonymous methods are not called on [this] */
         AnnotatedExecutableType method = atypeFactory.methodFromUse(node);
         if (!method.hasAnnotation(checker.ANONYMOUS)
@@ -591,6 +593,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                             state.getCurrentMethodName(), state.getCurrentClassName());
                 }
             } else {
+                /* Calling via reference */
                 ExpressionTree select = node.getMethodSelect();
                 if (select.getKind() == Tree.Kind.MEMBER_SELECT) {
                     MemberSelectTree selTree = (MemberSelectTree) select;
@@ -740,7 +743,15 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
     protected Boolean mayBeThis(ExpressionTree node) {
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node);
+        return mayBeThis(type);
+    }
+
+    protected Boolean mayBeThis(AnnotatedTypeMirror type) {
         return type.hasAnnotation(checker.THIS) || type.hasAnnotation(checker.MAYBE_THIS);
+    }
+
+    protected Boolean mayBeForeign(AnnotatedTypeMirror type) {
+        return type.hasAnnotation(checker.MAYBE_THIS) || type.hasAnnotation(checker.NOT_THIS);
     }
 
     /** 

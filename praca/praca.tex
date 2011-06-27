@@ -10,10 +10,12 @@
 \usepackage{color}
 \usepackage{amsthm}
 \usepackage{enumerate}
+\usepackage{mathtools}
+\usepackage{bussproofs}
 
 % Tikz
 \usepackage{tikz}
-\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{positioning,shapes,arrows,shadows}
 
 % Listings configuration 
 \usepackage{listings}
@@ -57,8 +59,10 @@
 \newtheorem{verrule}{Rule}
 
 \newcommand{\todo}[1]{{\color{red} [#1] }}
+\newcommand{\crlf}[0]{$\ $ \newline}
 
-\newenvironment{code}{\begin{center}\begin{alltt}}{\end{alltt}\end{center}}
+% Hoare triple
+\newcommand{\htr}[3]{\{#1\} #2 \{#3\}}
 
 \begin{document}
 \maketitle
@@ -218,10 +222,10 @@ a checker tool which would satisfy the following requirements:
   specifications and owner-polymorphism of methods.
 \item \textbf{Efficient checking.} Checking the immutability
   properties of a system should come together with normal
-  development. If there is no lag between compilation and immutability
-  verification, the developers can fix the surfacing errors
-  immediately, ensuring that the software is free of immutability
-  violations. 
+  development. If there is no delay between compilation and
+  immutability verification, the developers can fix the surfacing
+  errors immediately, ensuring that the software is free of
+  immutability violations.
 
   To be incorporated into normal development, however, a checker must
   be efficient, i.e. the verification must come with no significant
@@ -1125,9 +1129,522 @@ pursued in JimuvaChecker:
   illegally subclassed.
 \end{invariant}
 
-\section{The project of the checker}
+\section{JimuvaChecker}
 
+JimuvaChecker is a pluggable type checker for Java 7, built upon the
+Checker Framework. The framework has been described in Section
+\ref{sec:framework}.  In this section, we will outline the structure
+of the checker and list the rules it verifies.
 
+\subsection{Structure of the checker}
+
+Basically, JimuvaChecker is an annotation processor for Java 7 which
+aims to verify that the given programs contain no immutability
+violations. The process of verification can be divided into two steps:
+\begin{itemize}
+\item Firstly, the types of objects, methods and classes in the
+  verified program are marked with relevant properties to form
+  \emph{annotated types}. As mentioned in Section \ref{sec:framework},
+  an annotated type consists in the ordinary Java type and one or more
+  \emph{type qualifiers}.
+
+  Type qualifiers form a hierarchy which extends the Java subtyping
+  hierarchy (cf. Figure \ref{fig:example-checker-hierarchy} on page
+  \pageref{fig:example-checker-hierarchy}). Type qualifiers can be
+  introduced directly by the user by placing Java annotations on the
+  chosen types or references, or derived implicitly by the
+  checker. All annotations which are understood by JimuvaChecker have
+  been listed and described in Section~\ref{sec:modelling}.
+\item Secondly, the checker traverses the Abstract Syntax Tree,
+  inspecting the constructs which can potentially contribute to a
+  violation of the desired properties of the program. For
+  JimuvaChecker and the immutability-related properties it verifies,
+  the potentially dangerous constructs include, for example,
+  assignments, method invocations and the creation of a new object
+  with the \texttt{new} operator. 
+
+  The checker inspects the annotated types of objects which are
+  referred to in the given place of code, and signals an error if the
+  AST node violates a particular condition, indicating a possible
+  immutability violation. Throughout the remainder of this chapter, we
+  will refer to those conditions as \emph{rules}. In Section
+  \ref{sec:rules} we proceed to list all rules which are enforced by
+  JimuvaChecker.
+\end{itemize}
+
+The general structure of JimuvaCheckers matches that of all annotation
+processors based on the Checker Framework. The two functionalities
+mentioned above: providing syntactic elements with annotated types and
+the actual verification, are delegated to two classes:
+\texttt{JimuvaAnnotatedTypeFactory} and \texttt{JimuvaVisitor},
+respectively. Figure \ref{fig:classes} contains the UML class diagram
+for the project. 
+
+\newcommand{\cln}[1]{\textbf{\small{#1}}}
+
+\begin{figure}[p]
+  \tikzstyle{cl}=[rectangle, rectangle split, rectangle split parts=2, 
+  draw=black, rounded corners, fill=orange!20, drop shadow, anchor=north, text justified, text width=7cm]
+  \tikzstyle{use}=[-latex, dashed]
+  \begin{tikzpicture}[font=\tiny]
+    \node (checker) [cl, fill=orange!30] at (5, 7) { \cln{JimuvaChecker} extends BaseTypeChecker
+      \nodepart{second}
+      AnnotatedTypeFactory createFactory(CompilationUnitTree) \newline 
+      BaseTypeVisitor createSourceVisitor(CompilationUnitTree)
+    };
+    \node (factory) [cl, text width=9cm] at (9, 4) { \cln{JimuvaAnnotatedTypeFactory} 
+      extends AnnotatedTypeFactory
+      \nodepart{second} 
+      AnnotatedTypeMirror getAnnotatedType(Tree t) \newline
+      AnnotatedTypeMirror getAnnotatedType(Element e) \newline
+      void annotateImplicit(Tree tr, AnnotatedTypeMirror ty)
+    };
+    \node (visitor) [cl, text width=6.5cm] at (0, 4) { \cln{JimuvaVisitor} extends BaseTypeVisitor
+      \nodepart{second}
+      Void visitAssignment(AssignmentNode t) \newline
+      Void visitMethodInvocation(MethodInvocationTree t)
+    };
+    \node (state) [cl, text width=6cm, fill=orange!10] at (9, 0) { \cln{JimuvaVisitorState}
+      \nodepart{second} 
+      void enterMethod(MethodTree t) \newline
+      Boolean isCurrentMethod(AnnotatedTypeMirror m) \newline
+      void leaveMethod()
+    };
+    \node (flow) [cl, text width=6cm] at (0, 9.5) { \cln{JimuvaFlow} extends Flow
+      \nodepart{second}
+      void scan(Tree t) \newline
+      void merge(GenKillBits bits, GenKillBits other)
+    };
+    \node (owner) [cl, text width=4cm, fill=orange!10] at (0, 0) { \cln{Owner}
+      \nodepart{second}
+      Owner(Element el) \newline
+      Boolean isImmutable() \newline
+      void append(Owner owner)
+    };
+    \node (hierarchy) [cl, text width=10.5cm] at (7, 11) {\cln{JimuvaQualifierHierarchy} extends GraphQualifierHierarchy
+      \nodepart{second}
+      boolean isSubtype(Collection<AnnotationMirror> rhs, Collection<AnnotationMirror> lhs)
+    };
+
+    \foreach \f/\t/\a in {checker/flow/east, checker/hierarchy/east, visitor/owner/east, 
+      visitor/state/east, factory/owner/east, factory/state/east, state/owner/north} {
+      \draw [use] (\f) [near end, anchor=\a] edge node {<<use>>} (\t);
+    }
+
+    \foreach \f/\t in {checker/visitor, checker/factory}  {
+      \draw [use] (\f) [near end, anchor=east] edge node {<<create>>} (\t);
+    }
+    
+  \end{tikzpicture}
+  \caption{Simplified class diagram of the checker.}
+  \label{fig:classes}
+\end{figure}
+
+The responsibilities of the classes listed in Figure \ref{fig:classes}
+are as follows:
+\begin{itemize}
+\item \textbf{JimuvaChecker}: wrapper class responsible for creating
+  the working instances of other classes in the checker, handles the
+  reporting of error messages.
+\item \textbf{JimuvaAnnotatedTypeFactory}: creates annotated types for
+  objects in the analysed program. 
+\item \textbf{JimuvaVisitor}: using the Visitor pattern, inspects the
+  abstract syntax tree of the program, checking that they conform to
+  the rules described in the following section. 
+\item \textbf{JimuvaVisitorState}: during the AST traversal, the
+  visitor needs additional information such as the annotated type for
+  the current method or class. This information is stored in an
+  instance of JimuvaVisitorState. 
+\item \textbf{JimuvaFlow}: performs \emph{dataflow analysis} on the
+  given code in order to infer some annotations which are not
+  explicitly included by the user. The annotations are particularly
+  important in method anonymity checking (further described in Section
+  \ref{sec:ch:anon}) and parameter safety checking (Section
+  \ref{sec:ch:safe}). \todo{More on dataflow analysis}
+\item \textbf{Owner}: the class is responsible for analysing the
+  textual descriptions of object owners. Each object annotated with
+  \texttt{@OwnedBy} has a matching instance of Owner which defines its
+  owner object.
+\item \textbf{JimuvaQualifierHierarchy}: responsible for resolving
+  subtyping between annotated types. This class overrides the standard
+  subtyping from JimuvaChecker; more information on that is provided
+  in Section \ref{sec:ch:hier}. 
+\end{itemize}
+
+\section{Annotated type inference and verified rules}
+\label{sec:rules}
+
+\begin{figure}[tp]
+  \centering
+  \subfigure[Access rights specifiers] {
+    \begin{tikzpicture}[auto, >=latex]
+      \tikzstyle{acc} = [draw, rectangle, fill=yellow!10, rounded corners, thick, inner sep=4pt]  
+      \node [acc, very thick] (bot) at (0, 0) {\texttt{@Bottom}};
+      \node [acc] (mut) at (-2.5, 2) {\texttt{@Mutable}};
+      \node [acc] (mya) at (0, 2) {\texttt{@Myaccess}};
+      \node [acc] (imm) at (2.5, 2) {\texttt{@Immutable}};
+      
+      \foreach \n in {mut,mya,imm} {
+        \draw [->] (bot) -- (\n);
+      }   
+    \end{tikzpicture}
+  }
+  \tikzstyle{own} = [draw, rectangle, fill=green!10, rounded corners, thick, inner sep=4pt]    
+  \subfigure[Ownership specifiers] {
+    \begin{tikzpicture}
+      \node [own] (safe) at (0, 0) {\texttt{@Safe}};
+      \node [own] (anyo) at (-2, 2) {\texttt{@AnyOwner}}; 
+      \node [own] (rep) at (0, 2) {\texttt{@Rep}};
+      \node [own] (peer) at (2, 2) {\texttt{@Peer}};
+      \node [own] (ondb) at (-3, 4) {\texttt{@OwnedBy}};
+      \node [own] (world) at (-1, 4) {\texttt{@World}};
+      
+      \foreach \f/\t in {safe/anyo, safe/rep, safe/peer, anyo/ondb, anyo/world} {
+        \draw [->] (\f) -- (\t);
+      }
+    \end{tikzpicture}  
+  }
+  \caption{Full hierarchy of type annotations defined in JimuvaChecker}
+  \label{fig:hierarchy}
+\end{figure}
+
+This section will present the rules which programs are checked against
+by the JimuvaChecker in order to prevent immutability violations. In
+the following discussion, annotated types will be written in the form:
+
+$$\underbrace{\mathtt{@A\quad @B}}_{\mathclap{\textrm{\small{type qualifiers}}}}\quad \overbrace{\mathtt{T}}^{\mathclap{\textrm{\small{Java type}}}}$$
+
+\subsection{Subtyping}
+\label{sec:ch:hierarchy}
+
+JimuvaChecker extends the functionality of the BaseTypeChecker
+provided in the Checker Framework. BaseTypeChecker checks that if a
+value of type $S$ is assigned to a reference of type $T$, then $S$ is
+a subtype of $T$. JimuvaChecker makes use of this functionality, which
+implies the following rule:
+
+\setcounter{verrule}{-1}
+\begin{verrule}[Subtyping]
+  If a value of (annotated) type $S$ is assigned to a reference of type $T$, 
+  then $S$ must be a subtype of $T$.
+\end{verrule}
+Figure \ref{fig:hierarchy} shows the hierarchy of type qualifiers used
+in the checker. 
+
+The \texttt{@Bottom} annotation exists for purely technical
+reasons. In Checker Framework, each type must be annotated and
+\texttt{@Bottom} serves the purpose of a default annotation where the
+\texttt{@Mutable} annotation is unsuitable. It is implicitly given to
+constructs such as methods and classes, on which the concept of
+(im)mutability makes no sense. The \texttt{@Bottom} annotation does
+not need, and in fact should not, appear in user code. 
+
+There is a problem with the default subtyping mechanism in the Checker
+Framework which has to be addressed here. BaseTypeChecker provides a
+subtyping mechanism which would be wrong for our
+applications. Specifically, if $T$ had more than one type annotation
+(e.g. \texttt{@A @B C}), it would be enough for $S$ to have an
+annotation which subtypes \emph{one} of the annotations on the type
+$T$ to be considered a subtype of $T$. This would lead to unwanted
+results as, for example, \texttt{@Immutable @Peer String} would
+subtype \texttt{@Mutable @Safe String}, leading to an obvious
+violation in immutability when an \texttt{@Immutable} object gets
+assigned to a \texttt{@Mutable} reference. 
+
+The class JimuvaQualifierHierarchy is responsible for introducing
+another mechanism of subtyping. For each annotation $a$ on $T$ there
+must be an annotation on $S$ which subtypes $a$. In other words, each
+annotation on the potential supertype is treated as a requirement
+which has to be satisfied by the candidate subtype. 
+
+It has to be emphasised that this rule applies not only to explicit
+assignments, but is checked whenever an object is implicitly assigned
+to a reference. This includes passing parameters to methods:
+\begin{lstlisting}
+Object copy(@AnyOwner Object z) { ... } // Cannot pass a @Rep value due to subtyping rule.
+\end{lstlisting}
+and invoking a method on an object: 
+\begin{lstlisting}
+public class C {
+  Object z;
+  Object copy() @OwnedBy(''z'') { ... } // Cannot invoke on an object which is not owned by z
+}
+\end{lstlisting}
+
+There are several exceptions to the subtyping rule which will be
+highlighted in the next subsections. 
+
+\subsection{Guarding immutability}
+
+\paragraph{Softening Rule 0} \crlf
+
+The consequence of Rule 0 is that \texttt{@Mutable} objects cannot be
+assigned to \texttt{@Immutable} references. This is in line with
+Jimuva, whose authors state that allowing such \emph{upcasting} would
+lead to an unsoundness within their type system. However, this seems
+to be too strict for some real-life uses. Consider an instance method
+of the \texttt{PeerStack} class (introduced in
+Listing~\ref{lst:stack-peer} on page \pageref{lst:stack-peer}), whose
+aim is to copy the structure of the stack. The method would be
+declared in the following way:
+\begin{lstlisting}
+PeerStack copy(@Immutable PeerStack s) { ... }
+\end{lstlisting}
+to ensure that the original stack \texttt{s} remains unmodified. Rule
+0, however, makes it impossible to call \texttt{copy} on a
+\texttt{@Mutable} object, even though it would pose no danger to the
+immutability properties. This observation is more general: any object
+can be \emph{upcast} to a reference with stricter access restrictions,
+i.e. \texttt{@Mutable} to \texttt{@Myaccess} or \texttt{@Immutable}
+and \texttt{@Myaccess} to \texttt{@Mutable}, without violating
+immutability.
+
+To address the above discussion, JimuvaChecker includes a mechanism
+which allows the user to ease the restriction which Rule 0
+carries. Whenever the \texttt{allow.upcast=true} option is passed to
+the checker, upcasting on access rights specifications will be
+permitted.
+
+\paragraph{Enforcing \texttt{@ReadOnly} on methods} \crlf
+
+\texttt{@ReadOnly} methods must prevent the modification of their
+receiver. 
+
+\begin{verrule}[\texttt{@ReadOnly} methods]
+  The receiver of a \texttt{@ReadOnly} method is implicitly marked
+  with \texttt{@Immutable}. As an exception to Rule 0, access rights
+  upcasting is allowed in this case, regardless of the
+  \texttt{allow.upcast} option, so that \texttt{@ReadOnly} methods may
+  be invoked on \texttt{@Mutable} objects.
+\end{verrule}
+
+\paragraph{Resolving \texttt{@Myaccess}} 
+
+If an object containing \texttt{@Myaccess} elements is created and
+used, the access rights variable is \emph{resolved}, depending on the
+access rights on the object itself. This aims to protect the
+immutability of \texttt{@Myaccess} elements of \texttt{@Immutable}
+objects.
+
+\begin{verrule}[Resolving \texttt{@Myaccess}]
+  Elements annotated with \texttt{@Myaccess} are resolved in the
+  following way:
+  \begin{enumerate}[(1)]
+  \item For a method call \texttt{x.m(\dots, @Myaccess z, \dots)}, the
+    required access rights to \texttt{z} are the same as the access
+    rights to \texttt{x}.
+  \item For a method call \texttt{x.m(\dots)}, if \texttt{x} returns a
+    value annotated with \texttt{@Myaccess}, the access rights to the
+    result are the same as the access rights to \texttt{x}.
+  \item For a member select expression \texttt{x.f}, if \texttt{f} is
+    annotated \texttt{@Myaccess}, the access rights to the whole
+    expression are the same as the access rights to \texttt{x}.
+  \end{enumerate}
+\end{verrule}
+
+\subsection{Enforcing constructor anonymity}
+
+Constructors of immutable objects should be annotated with
+\texttt{@Anonymous}. JimuvaChecker verifies that \texttt{@Anonymous}
+constructors and methods do not leak references to \texttt{this},
+which would allow foreign objects to observe the state of the object
+being constructed, possibly before its state is fully
+established. This would violate the property of immutability as stated
+in Section \ref{sec:properties}. 
+
+To begin with, the checker has to have knowledge on which references
+may point to the object under construction. We do not want, however,
+to force the user to provide this information in their code. Instead,
+JimuvaChecker utilizes \emph{dataflow analysis} to infer information on
+dangerous references to \texttt{this}.
+
+\paragraph{Dataflow analysis in general} \crlf
+
+Generally, dataflow analysis is a static analysis technique used to
+gather information on the possible values computed at a given point of
+a program. The method consists in:
+\begin{itemize}
+\item modifying the information available in the prestate of each
+  statement according to the form of the statement, 
+\item branching and merging the information on conditional statements,
+  loops etc.
+\end{itemize}
+Dataflow analysis may be used, for example, to compute the reach of
+particular variable definitions in a program, the set of \emph{live}
+variables which contribute to the overall result, and many more
+program properties. A comprehensive introduction to dataflow analysis
+can be found in~\cite{dataflow}. 
+
+\paragraph{Inferring information on references to \texttt{this}} \crlf
+
+In JimuvaChecker, a simple interprocedural dataflow analysis is
+performed prior to verification using an implementation supplied in
+the Checker Framework, with the class texttt{JimuvaFlow} responsible
+for the analysis. It aims to annotate expressions with one of three
+possible annotations: \texttt{@This}, \texttt{@MaybeThis} and
+\texttt{@NotThis}. The annotations are internal for JimuvaChecker:
+they should not appear in user code, but may show up in error messages
+printed by the checker. 
+
+The analyser stores a map from element (variable, parameter etc.)
+identifiers into the relevant annotation for each place in code.
+Below, we present a simplified set of typing rules for expressions
+which are applied by the flow analysis. As usual in type systems, $x :
+\tau$ will denote that the value $x$ is of type $\tau$. Moreover, $x :
+\lbrace\tau_1, \tau_2\rbrace$ will be used as an abbreviation for the
+alternative $x : \tau_1 \lor x : \tau_2$.
+
+The type inference rules for expressions are as follows:
+\def\proofSkipAmount{\vskip 0.4cm}
+\begin{prooftree}
+  \AxiomC{}
+  \RightLabel{(this)}
+  \UnaryInfC{$\mathtt{this} : \texttt{@This}$}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{}
+  \RightLabel{(new)}
+  \UnaryInfC{\texttt{new} C($\vec{p}$) : \texttt{@NotThis}}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{x : $\lbrace \mathtt{@This}, \mathtt(@MaybeThis)\rbrace$}
+  \RightLabel{(this-member)}
+  \UnaryInfC{x.f : \texttt{@MaybeThis}}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{x : \texttt{@NotThis}}
+  \RightLabel{(nthis-member)}
+  \UnaryInfC{x.f : \texttt{@NotThis}}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{m : \texttt{@Anonymous}}
+  \AxiomC{x : $\lbrace \mathtt{@This}, \mathtt{@MaybeThis}\rbrace$}
+  \RightLabel{(anon-this-inv)}
+  \BinaryInfC{x.m($\vec{p}$) : \texttt{@NotThis}}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{$\neg$ (m : \texttt{@Anonymous})}
+  \AxiomC{x : $\lbrace \mathtt{@This}, \mathtt{@MaybeThis}\rbrace$}
+  \RightLabel{(nanon-this-inv)}
+  \BinaryInfC{x.m($\vec{p}$) : \texttt{@MaybeThis}}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{x : \texttt{@NotThis}}
+  \RightLabel{(nthis-inv)}
+  \UnaryInfC{x.m($\vec{p}$) : \texttt{@NotThis}}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{$p$ is a parameter of a constructor}
+  \RightLabel{(param-ctor)}
+  \UnaryInfC{p : \texttt{@NotThis}}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{$p$ is a parameter of a method}
+  \RightLabel{(param-meth)}
+  \UnaryInfC{p : \texttt{@MaybeThis}}
+\end{prooftree}
+
+Most of the above rules are straightforward, but several need further
+explanation: 
+\begin{itemize}
+\item In (nthis-member) and in (nthis-inv), we assume that a reference
+  to \texttt{this} has not been leaked to another object. This means
+  that the enforcing of the \texttt{@Anonymous} annotation is not
+  absolute. A call to an anonymous method might in fact unwittingly
+  leak \texttt{this} references if the object has already leaked such
+  a reference and passed it back to the anonymous method or assigned
+  to a field. Notice, however, that this does no harm to the
+  immutability properties, because anonymity is only crucial during
+  construction.
+\item A most conservative approach has been taken in (param-meth),
+  which takes into consideration situations when the user might pass a
+  reference to this as an argument to its own instance method. 
+\item The (anon-this-inv) is closely related to Rule
+  \ref{vrl:anon-ret} stated in the following subsection. 
+\end{itemize}
+
+The types inferred using the above rules are subsequently propagated
+along with the values. JimuvaChecker takes a conservative approach,
+possibly coming up with spurious errors, but ensuring that the
+immutability property holds. The propagation rules which handle
+conditional expressions utilize a relation $\cup$ which is defined as
+follows:
+\begin{table}[h]
+  \centering
+  \begin{tabular}{c|c|c|c|}
+    $\cup$ & \texttt{@This} & \texttt{@MaybeThis} & \texttt{@NotThis} \\ \hline
+    \texttt{@This} & \texttt{@This} & \texttt{@MaybeThis} & \texttt{@MaybeThis} \\ \hline
+    \texttt{@MaybeThis} & \texttt{@MaybeThis} & \texttt{@MaybeThis} & \texttt{@MaybeThis} \\ \hline
+    \texttt{@NotThis} & \texttt{@MaybeThis} & \texttt{@MaybeThis} & \texttt{@MaybeThis} \\ \hline
+  \end{tabular}
+\end{table}
+
+Several example propagation rules are shown below in Hoare logic~\cite{hoare}.
+\begin{prooftree}
+  \AxiomC{v : $\tau$}
+  \RightLabel{(assign)}
+  \UnaryInfC{\htr{true}{x = val}{x : $\tau$}}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{}
+  \RightLabel{(alias)}
+  \UnaryInfC{\htr{var : $\tau$}{x = var}{x : $\tau$}}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{\htr{$\phi$}{$P_1$}{x : $\tau_1$}}
+  \AxiomC{\htr{$\phi$}{$P_2$}{x : $\tau_2$}}
+  \RightLabel{(if)}
+  \BinaryInfC{\htr{$\phi$}{\texttt{if (}$C$\texttt{)} $P_1$ \texttt{else} $P_2$}{x : $\tau_1 \cup \tau_2$}}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{\htr{$\phi$}{$P$}{x : $\tau_2$}}
+  \RightLabel{(while)}
+  \UnaryInfC{\htr{$\phi \land x : \tau_1$}{\texttt{while (}$C$\texttt{)} $P$}{x : $\tau_1 \cup \tau_2$}}
+\end{prooftree}
+
+\begin{prooftree}
+  \AxiomC{\htr{$\phi$}{$P_1$}{x : $\tau_1$}}
+  \AxiomC{\htr{$\phi$}{$P_2$}{x : $\tau_2$}}
+  \AxiomC{\htr{$\phi$}{$P_3$}{x : $\tau_3$}}
+  \RightLabel{(try-catch-finally)}
+  \TrinaryInfC{\htr{$\phi$}{try $C$ catch(e) $P_1$ finally $P_2$}{x : $\tau_1 \cup \tau_2 \cup \tau_3$}}
+\end{prooftree}
+
+\paragraph{Rules for anonymity} \crlf
+
+Having introduced the concept and mechanism of tracing references to
+\texttt{this} inside constructors, we can finally state the rules
+related to anonymity which are verified by JimuvaChecker.
+
+\begin{verrule}[Anonymity]
+  Whenever a method \texttt{m} is annotated \texttt{@Anonymous}, if
+  $x$ is a value of type\texttt{@This} or \texttt{@MaybeThis}:
+  \begin{enumerate}[(1)]
+  \item \texttt{m} cannot return $x$, 
+  \item \texttt{m} cannot call non-anonymous methods on $x$, 
+  \item inside \texttt{m}, $x$ cannot be passed as an argument to a constructor, 
+  \item inside \texttt{m}, $x$ cannot be passed as an argument to a
+    method of a foreign object (of type \texttt{@NotThis} or
+    \texttt{@MaybeThis}),
+  \item inside \texttt{m}, $x$ cannot be assigned to an object field
+    or an array field.
+  \end{enumerate}
+\end{verrule}
+
+\subsection{Encapsulation of representation}
+
+\subsection{Enforcing the safety of \texttt{@Safe} values}
 
 \addcontentsline{toc}{chapter}{References}
 \bibliography{biblio.bib}{}
