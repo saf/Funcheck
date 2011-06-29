@@ -60,6 +60,25 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         this.state = state;
     }
 
+    protected enum Protection {
+        NONE,        /* No protection */
+        IMM,         /* Protecting @Immutable object */
+        MYACC        /* Protecting @Myaccess object in @ReadOnly method */
+    }
+
+    protected Protection getProtection(AnnotatedTypeMirror t) {
+        AnnotatedTypeMirror methodReceiver = state.getCurrentMethod().getReceiverType();
+        if (t.hasAnnotation(checker.IMMUTABLE)) {
+            return Protection.IMM;
+        } else if (t.hasAnnotation(checker.MYACCESS)
+                && methodReceiver != null
+                && methodReceiver.hasAnnotation(checker.IMMUTABLE)) {
+            return Protection.MYACC;
+        } else {
+            return Protection.NONE;
+        }
+    }
+
     @Override
     public Void visitAssignment(AssignmentTree node, Void p) {
         ExpressionTree varTree = node.getVariable();
@@ -68,31 +87,31 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
         AnnotatedTypeMirror receiver = atypeFactory.getReceiver(varTree);
         Element varElement = InternalUtils.symbol(varTree);
-        if (receiver != null && receiver.hasAnnotation(checker.IMMUTABLE)
+
+        Protection prot = getProtection(receiver);
+        /* Prohibit assignment to @Rep fields of @Immutable owners */
+        if (receiver != null 
+                && prot != Protection.NONE
                 && varElement.getKind().isField()
                 && receiver.getKind() != TypeKind.ARRAY) {
-            if (TreeUtils.isSelfAccess(varTree) && varElement.getKind() == ElementKind.FIELD) {
-                checker.report(Result.failure("assign.readonly.receiver.field",
-                        varTree.toString(), state.getCurrentMethodName()), node);
-                if (state.inImplicitlyAnnotatedMethod()) {
-                    checker.note(null, "readonly.implicit",
-                            state.getCurrentMethodName(), state.getCurrentClassName());
+            if (varElement.getKind() == ElementKind.FIELD) {
+                if (TreeUtils.isSelfAccess(varTree)) {
+                    checker.report(Result.failure(prot == Protection.IMM 
+                            ? "assign.readonly.receiver.field"
+                            : "modifying.myaccess.in.readonly",
+                            varTree.toString(), state.getCurrentMethodName()), node);
+                    if (state.inImplicitlyAnnotatedMethod()) {
+                        checker.note(null, "readonly.implicit",
+                                state.getCurrentMethodName(), state.getCurrentClassName());
+                    }
+                } else {
+                    checker.report(Result.failure("assign.immutable.field",
+                            varTree.toString(), receiver.getElement().toString()), node);
                 }
-            } else {
-                checker.report(Result.failure("assign.immutable.field",
-                        varTree.toString(), receiver.getElement().toString()), node);
             }
         }
 
         AnnotatedTypeMirror methodReceiver = state.getCurrentMethod().getReceiverType();
-
-        /* Prohibit the modification of @Myaccess values in @Readonly methods */
-        if (methodReceiver.hasAnnotation(checker.IMMUTABLE)
-                && receiver != null && receiver.hasAnnotation(checker.MYACCESS)) {
-            checker.report(Result.failure("modifying.myaccess.in.readonly", 
-                    varTree.toString(), state.getCurrentMethodName()), node);
-        }
-
         /* Check that @Rep values are not modified */
         checkAssignmentRep(node, methodReceiver != null
                 && methodReceiver.hasAnnotation(checker.IMMUTABLE));
@@ -247,12 +266,17 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
          * When inside a @ReadOnly method, we cannot modify @Myaccess objects, as the access 
          * rights variable could be instantiated to @Immutable.
          */
-        if (state.isCurrentMethodReceiver(checker.IMMUTABLE)
-                && receiver != null && receiver.hasAnnotation(checker.MYACCESS)
-                && calledMethodReceiver != null && !calledMethodReceiver.hasAnnotation(checker.IMMUTABLE)) {
+        if (state.isCurrentMethodReceiver(checker.IMMUTABLE) && receiver != null
+            && calledMethodReceiver != null && !calledMethodReceiver.hasAnnotation(checker.IMMUTABLE)) {
+            if (receiver.hasAnnotation(checker.MYACCESS)) {
             checker.report(Result.failure("nonreadonly.call.on.myaccess.in.readonly",
                     calledMethod.getElement().getSimpleName().toString(),
                     calledMethodReceiver.getElement().getSimpleName().toString()), node);
+            } else if (receiver.hasAnnotation(checker.REP)) {
+                checker.report(Result.failure("nonreadonly.call.on.rep",
+                    calledMethod.getElement().getSimpleName().toString(),
+                    calledMethodReceiver.getElement().getSimpleName().toString()), node);
+            }
         }
 
         /* Disallow passing references to 'this' as arguments of foreign methods.

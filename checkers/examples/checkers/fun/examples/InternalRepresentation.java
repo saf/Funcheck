@@ -73,6 +73,7 @@ public class InternalRepresentation {
             this.nop(repHolder);        /* This is OK, though */
 
             repHolder.n = 10; /* Also, can't modify the state of repHolder */
+            repHolder = new /*@Rep*/ IntHolder(0);
             return repHolder; /* Cannot return a @Rep object */
         }
 
