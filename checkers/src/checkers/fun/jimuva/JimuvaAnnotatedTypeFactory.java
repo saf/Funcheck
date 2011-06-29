@@ -106,6 +106,11 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                         type.addAnnotation(checker.REP);
                     } else if (receiverType.hasAnnotation(checker.PEER)) {
                         type.addAnnotation(checker.PEER);
+                    } else if (receiverType.hasAnnotation(checker.WORLD)) {
+                        type.addAnnotation(checker.WORLD);
+                    } else if (receiverType.hasAnnotation(checker.OWNEDBY)) {
+                        JimuvaVisitor.Owner retOwner = new JimuvaVisitor.Owner(mElem, this);
+                        type.addAnnotation(ownerAnnotation(retOwner.asString()));
                     }
                 } else if (returnType.hasAnnotation(checker.OWNEDBY) 
                         && !TreeUtils.isSelfAccess(inv)) {
@@ -158,6 +163,13 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                 if (expElemType.hasAnnotation(checker.REP)) {
                     type.removeAnnotation(checker.PEER);
                     type.addAnnotation(checker.REP);
+                } else if (expElemType.hasAnnotation(checker.WORLD)) {
+                    type.removeAnnotation(checker.PEER);
+                    type.addAnnotation(checker.WORLD);
+                } else if (expElemType.hasAnnotation(checker.OWNEDBY)) {
+                    JimuvaVisitor.Owner elOwner = new JimuvaVisitor.Owner(elem, this);
+                    type.removeAnnotation(checker.PEER);
+                    type.addAnnotation(ownerAnnotation(elOwner.asString()));
                 }
             } else if (elemType.hasAnnotation(checker.OWNEDBY)) {
                 JimuvaVisitor.Owner elOwner = new JimuvaVisitor.Owner(elem, this);
