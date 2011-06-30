@@ -19,7 +19,7 @@
 
 % Listings configuration 
 \usepackage{listings}
-\lstset{language=Java,columns=fullflexible, xleftmargin=1cm, captionpos=b, abovecaptionskip=12pt, belowcaptionskip=12pt}
+\lstset{language=Java,columns=fullflexible, xleftmargin=1cm, captionpos=b, abovecaptionskip=12pt, belowcaptionskip=12pt, basicstyle=\tt}
 % \renewcommand{\texttt}{\textsf}
 
 \author{Sławomir Rudnicki}
@@ -32,7 +32,7 @@
 \opiekun{dr. Aleksego Schuberta\\
   Instytut Informatyki\\
   }
-\date{Maj 2011}
+\date{Lipiec 2011}
 \dziedzina{11.3 Informatyka}
 \klasyfikacja{D. Software\\
   D.2 SOFTWARE ENGINEERING\\
@@ -78,7 +78,11 @@
 \chapter{Introduction}
 \label{chap:intro}
 
-\todo{More on immutability}
+\todo{About the thesis}
+
+\chapter{Object immutability}
+
+\todo{More general information on immutability, motivation}
 
 \section{Jimuva}
 \label{sec:jimuva}
@@ -206,59 +210,39 @@ such internal representation objects are created, lest they could be
 used to modify the state of \texttt{this}. Section \ref{sec:safe}
 deals with this problem in the context of JimuvaChecker.
 
-\chapter{The JimuvaChecker tool}
+\section{Modelling Jimuva in Java}
+\label{sec:modelling}
 
-This chapter will present JimuvaChecker, the checker tool created as
-part of this thesis. We aimed to implement the concepts of the
-language Jimuva, as presented in section \ref{sec:jimuva}, and develop
-a checker tool which would satisfy the following requirements:
-\begin{itemize}
-\item \textbf{Applicability to full Java.} The syntax of Jimuva
-  differs from that of full Java. In some ways, it is reduced: there
-  are no loops and even no conditional branches in the core
-  language. In other ways, the syntax is modified -- for example, it
-  utilizes let-binding of local variables rather than declarations --
-  or extended, as it is the case with the ownership and access rights
-  specifications and owner-polymorphism of methods.
-\item \textbf{Efficient checking.} Checking the immutability
-  properties of a system should come together with normal
-  development. If there is no delay between compilation and
-  immutability verification, the developers can fix the surfacing
-  errors immediately, ensuring that the software is free of
-  immutability violations.
+This section contains details on the translation of Jimuva access
+rights and~ownership specifications into Java annotations. For
+information on how the desired properties are verified, please refer
+to Section \ref{sec:checking}.
 
-  To be incorporated into normal development, however, a checker must
-  be efficient, i.e. the verification must come with no significant
-  time overhead. A way to ascertain this is to make the checking
-  \emph{modular} -- to verify a compilation unit, a modular checker
-  only requires the source code for the unit and the declarations for
-  the methods and classes used therein.
-\end{itemize}
+\subsection{Introduction}
 
-In order to mirror the notions introduced in Jimuva, Java annotations
-are used in JimuvaChecker to describe properties of objects, methods
-and classes within the syntax of Java. However, the syntax of Java
-annotations, as introduced in Java 5~\cite{jls3}, is insufficient to
-express all immutability-related properties. Therefore, we needed to
-use the extended annotation syntax proposed in the Java Specification
-Request 308~\cite{jsr308}. As a proof of concept, the authors of the
-JSR 308 specification created a Checker Framework~\cite{checkers},
-which can be used to build compiler plugins acting as annotation
-processors for the extended syntax.
+There are two basic concepts of Jimuva which extend the Java language
+syntax and therefore need to be translated into Java annotations: the
+access rights and ownership specifications. The other differences
+between the syntax of Jimuva and Java are virtually insignificant for
+this work. For example, the \texttt{let}-bindings, which Jimuva uses
+in place of local variables, are easily mirrored into simple local
+variable declarations. Taking care of the syntactical construct of
+Java which do not exist in Jimuva, such as loops, will also prove to
+be easy for the purpose of verifying immutability properties.
 
-JimuvaChecker, the checker tool created as part of our work, was
-implemented using the Checker Framework.
+As mentioned in the previous section, \todo{check if it is previous}
+the checkers which make use of the Checker Framework should build a
+hierarchy of type annotations. Such a hierarchy has been created in
+JimuvaChecker, along with rules which need to be enforced in order to
+ensure immutability and ownership-related correctness. The following
+sections elaborate upon the mapping from Jimuva to this hierarchy and
+may be considered as a discussion of the syntax of the language
+JimuvaChecker works upon.
 
-The following section lists some of the syntax extensions introduced
-by JSR 308 which are crucial to the functioning of our checker.
-Section \ref{sec:framework} proceeds to describe the main concepts of
-the Checker Framework. Section \ref{sec:checking} details on the type
-system and verification implemented in JimuvaChecker.
-
-\section{JSR 308}
+\subsection{JSR 308}
 \label{sec:jsr308}
 
-JSR 308 is a specification request which regards an extension to the
+JSR 308 is a specification request which concerns an extension to the
 syntax of Java annotations. First proposed in 2006, it was meant to
 become a part of the Java 7 standard. Although it was not incorporated
 into Java 7, the extension proves to be especially useful in the field
@@ -308,143 +292,6 @@ complete discussion of the syntax changes.
     \texttt{x = new LinkedList<@NonNull @ReadOnly String>()}
   \end{center}
 \end{itemize}
-
-
-\section{The Checker Framework}
-\label{sec:framework}
-
-\begin{figure}
-  \centering
-  
-  \subfigure[Example hierarchy of type annotations]{
-    \tikzstyle{block} = [draw, rectangle, fill=blue!10, rounded corners, thick, inner sep=4pt]  
-    \begin{tikzpicture}[auto, node distance=3cm, >=latex]
-      \node [minimum width=6cm] at (2, 1.5) (dummy) {};
-      \node [block] (top) at (2, 1.5) {@Nullable}; 
-      \node [block, below of=top] (bot) at (2, 1.2) {@NonNull}; 
-      \draw [->] (bot) -- (top); 
-    \end{tikzpicture}
-  }
-  \subfigure[The resulting type hierarchy]{
-    \tikzstyle{block} = [draw, rectangle, fill=orange!10, rounded corners, thick, inner sep=4pt]  
-    \begin{tikzpicture}[auto, node distance=3cm, >=latex]
-      \node [block] (top) {@Nullable Object}; 
-      \node [block, below left of=top] (left) {@NonNull Object}; 
-      \node [block, below right of=top] (right) {@Nullable Date}; 
-      \node [block, below right of=left] (bot) {@NonNull Date}; 
-      
-      \draw [->] (bot) -- (left); 
-      \draw [->] (bot) -- (right); 
-      \draw [->] (right) -- (top); 
-      \draw [->] (left) -- (top); 
-      
-    \end{tikzpicture}
-  }
-  \caption{Relations between annotated types in a checker. An arrow from
-    A to B indicates that A is a subtype of B.}
-  \label{fig:example-checker-hierarchy}
-\end{figure}
-
-
-The Checker Framework is a tool which can be used to create new
-annotation processors for Java. Basically, the checkers extend the
-type-checking functionality of the Java compiler itself by introducing
-a hierarchy of \emph{type annotations} on top of the hierarchy
-stemming from simple subclassing and interfacing. Type annotations are
-Java annotations which can be used on any type occurrence, as enabled
-by the syntax extensions of JSR 308. They can be organised in a
-supertype-subtype hierarchy which enhances the existing Java type
-hierarchy.
-
-Figure \ref{fig:example-checker-hierarchy} shows how such an enhanced
-type hierarchy works. Here, the type annotation @NonNull is defined to
-be a subtype of the default annotation @Nullable. Subtyping in the
-resulting type hierarchy may come from two sources: normal Java
-subclassing and the subtyping between type annotations.
-
-Normally, a pluggable type checker works by extending the
-functionality of the simple \texttt{BaseTypeChecker} shipped with the
-framework. The \texttt{BaseTypeChecker} verifies that all assignments,
-including implicit ones such as the assignment of parameters to formal
-arguments of methods during method invocation, follow the subtyping
-rules. Specifically, if a value of type $B$ is assigned to a reference
-of type $B$, the checker verifies that $B$ is a subtype of $A$ as per
-the enhanced type hierarchy.
-
-A checker based on the Checker Framework usually consists of two main
-modules:
-\begin{itemize}
-\item the \textbf{annotated type factory}, which provides syntactical
-  constructs of the Java language with type annotations according to a
-  given set of rules,
-\item the \textbf{visitor} which traverses the nodes of the abstract
-  syntax tree (AST) of the given compilation unit and verifies
-  properties based on their annotated types inferred by the annotated
-  type factory. This module acts upon the AST by making use of the
-  Visitor design pattern~\cite{visitor}. Of course, the properties to
-  be checked are not limited to simple subtyping checking; one may
-  implement any rule which the code being compiled will be checked
-  against.
-\end{itemize}
-Figure \ref{fig:simple-checker} contains the schema of how the modules
-of a checker work to verify the properties of a given source code
-file.
-
-\begin{figure}
-  \centering
-
-  \tikzstyle{block} = [draw, rectangle, fill=orange!10, minimum
-  width=3cm, minimum height=0.6cm, rounded corners, inner sep=4pt, thick]
-  \begin{tikzpicture}[auto, node distance=3cm, >=latex]
-    \node [block, fill=blue!10] (compiler) at (5, 5) {\texttt{javac -processor checkers.x.XChecker code.java}};
-    \node [block, fill=orange!10] (checker) at (5, 4) {XChecker}; 
-    \node [block, fill=yellow!20, node distance=5cm, pin={[pin edge={latex-, thin, black}] above:{source code}}] 
-    (code) at (0, 3) {\texttt{code.java}};
-    \node [block] (visitor) at (3, 1) {XVisitor};
-    \node [block] (factory) at (9, 1) {XAnnotatedTypeFactory};
-
-    \draw [->, dashed] (compiler) -- (checker);
-    \draw [->, dashed] (checker) -- (factory);
-    \draw [->, dashed] (checker) -- (visitor);
-    \draw [->] (visitor.east) [bend left] edge node [above] {\small{elements}} (factory.west); 
-    \draw [<-] (visitor.east) [bend right] edge node [below] {\parbox[c]{1cm}{\small{assign types}}} (factory.west);
-    \draw [->] (visitor) edge node {\parbox[c]{1.2cm}{\small{check} \tiny{(Visitor pattern)}}} (code);
-  \end{tikzpicture}
-
-  \caption{A simplified schema of source code file analysis by a
-    Checker Framework-based checker.}
-  \label{fig:simple-checker}
-\end{figure}
-
-
-\section{Modelling Jimuva in Java}
-\label{sec:modelling}
-
-This section contains details on the translation of Jimuva access
-rights and~ownership specifications into Java annotations. For
-information on how the desired properties are verified, please refer
-to Section \ref{sec:checking}.
-
-\subsection{Introduction}
-
-There are two basic concepts of Jimuva which extend the Java language
-syntax and therefore need to be translated into Java annotations: the
-access rights and ownership specifications. The other differences
-between the syntax of Jimuva and Java are virtually insignificant for
-this work. For example, the \texttt{let}-bindings, which Jimuva uses
-in place of local variables, are easily mirrored into simple local
-variable declarations. Taking care of the syntactical construct of
-Java which do not exist in Jimuva, such as loops, will also prove to
-be easy for the purpose of verifying immutability properties.
-
-As mentioned in the previous section, \todo{check if it is previous}
-the checkers which make use of the Checker Framework should build a
-hierarchy of type annotations. Such a hierarchy has been created in
-JimuvaChecker, along with rules which need to be enforced in order to
-ensure immutability and ownership-related correctness. The following
-sections elaborate upon the mapping from Jimuva to this hierarchy and
-may be considered as a discussion of the syntax of the language
-JimuvaChecker works upon.
 
 \subsection{Modelling immutability specifications}
 
@@ -525,7 +372,7 @@ object is \texttt{@Immutable}, JimuvaChecker will enforce that the
 value returned from \texttt{get()} and the value passed to
 \texttt{set()} as a parameter are also immutable.
 
-\paragraph{Note: \texttt{@Immutable} is not \texttt{final}} $\,$ \\
+\paragraph{Important note: \texttt{@Immutable} is not \texttt{final}} \crlf
 
 There is a certain distinction between \texttt{final} references and
 \texttt{@Immutable} objects. Consider the following series of
@@ -855,10 +702,11 @@ public class A {
 \end{itemize}
 
 The second limitation regarding this general case of ownership is
-connected to the semantics. Because ownership is represented by a
-string rather than a true reference to an object, we do not have a way
-of verifying that the reference described in the annotation's
-parameter does not change. Consider the following example:
+connected to the semantics. Because ownership information is stored in
+a string rather than as a true reference to an owner object, we do not
+have a way of verifying that the reference described in the
+annotation's parameter does not change. Consider the following
+example:
 \begin{lstlisting}
 void process() {
   IntList list = new IntList();
@@ -868,8 +716,8 @@ void process() {
 \end{lstlisting}
 The reference \texttt{list} changes, but the description in the
 ownership specification for \texttt{n} does not. The \texttt{@OwnedBy}
-annotation introduces references, rather than particular objects, as
-owners. 
+annotation introduces \texttt{references}, rather than particular
+objects, as owners.
 
 Another related problem with the general ownership lies in the fact
 that the owner descriptions are relative to the annotated object. We
@@ -916,9 +764,9 @@ available in Section \todo{Reference}.
 \subsection{Modelling owner-polymorphic methods}
 
 The Jimuva language includes \emph{owner-polymorphic} methods, which
-accept parameters with generic (variable) ownership. Let us recall the
-introductory example method from Section \ref{sec:jimuva:poly} for
-further discussion:
+accept parameters with generic (variable) ownership. For further
+discussion, let us recall the introductory example method from Section
+\ref{sec:jimuva:poly}:
 \begin{center}
   \texttt{<x,y> void copy(C<x> from, C<y> to)}
 \end{center}
@@ -964,16 +812,16 @@ speaking, the caller entrusts the polymorphic method with a part of
 its representation, but it should be assured that the callee will not
 leak the object any further.
 
-Our type system must ensure that this is the case in
-JimuvaChecker. Therefore, the \texttt{@Safe} annotation was
+Our type system has to make it possible to ensure that this is the
+case in JimuvaChecker. Therefore, the \texttt{@Safe} annotation was
 introduced, which is designed for use with formal parameters of
 methods. The checker allows protected objects, i.e. those annotated
 with \texttt{@Rep} and \texttt{@Peer}, to be passed to methods as
 \texttt{@Safe} parameters, but it enforces their protection by
 prohibiting the method to create \emph{static aliases} to the
-parameters \todo{or any object transitively reachable from them}. This
-concept of \emph{safe parameters} is similar to that presented by
-Sălcianu and~Rinard in their work related to method
+parameters or any object transitively reachable from the
+parameters. This concept of \emph{safe parameters} is similar to that
+presented by Sălcianu and~Rinard in their work related to method
 purity~\cite{purity}.
 
 Objects annotated with \texttt{@OwnedBy} or the implicit
@@ -983,12 +831,6 @@ arguments.
 
 Section \ref{sec:checking:safety} provides more details on the
 enforcing of parameter safety in JimuvaChecker.
-
-\chapter{Verifying immutability}
-
-JimuvaChecker may be used to verify properties of programs which are
-related to the concept of object immutability. This chapter presents
-those properties, as well as the mechanism of verification.
 
 \section{Immutability properties}
 
@@ -1024,7 +866,7 @@ model:
   a Java primitive type (\texttt{float}, \texttt{int} etc.) or an object.
 \end{defi}
 Because we don't intend to introduce full semantics of Java, program
-state is introduced informally in the above definition, but it should
+state is introduced informally in the above definition. It should
 be understood as the full information on the threads, stack frames and
 the mapping of heap addresses to values. 
 
@@ -1131,14 +973,159 @@ pursued in JimuvaChecker:
 \end{invariant}
 
 
-\section{JimuvaChecker}
+\chapter{The JimuvaChecker tool}
 
-JimuvaChecker is a pluggable type checker for Java 7, built upon the
-Checker Framework. The framework has been described in Section
-\ref{sec:framework}.  In this section, we will outline the structure
-of the checker and list the rules it verifies.
+This chapter will present JimuvaChecker, the checker tool created as
+part of this thesis. We aimed to implement the concepts of the
+language Jimuva, as presented in section \ref{sec:jimuva}, and develop
+a checker tool which would satisfy the following requirements:
+\begin{itemize}
+\item \textbf{Applicability to full Java.} The syntax of Jimuva
+  differs from that of full Java. In some ways, it is reduced: there
+  are no loops and even no conditional branches in the core
+  language. In other ways, the syntax is modified -- for example, it
+  utilizes let-binding of local variables rather than declarations --
+  or extended, as it is the case with the ownership and access rights
+  specifications and owner-polymorphism of methods.
+\item \textbf{Efficient checking.} Checking the immutability
+  properties of a system should come together with normal
+  development. If there is no delay between compilation and
+  immutability verification, the developers can fix the surfacing
+  errors immediately, ensuring that the software is free of
+  immutability violations.
 
-\subsection{Structure of the checker}
+  To be incorporated into normal development, however, a checker must
+  be efficient, i.e. the verification must come with no significant
+  time overhead. A way to ascertain this is to make the checking
+  \emph{modular} -- to verify a compilation unit, a modular checker
+  only requires the source code for the unit and the declarations for
+  the methods and classes used therein.
+\end{itemize}
+
+In order to mirror the notions introduced in Jimuva, Java annotations
+are used in JimuvaChecker to describe properties of objects, methods
+and classes within the syntax of Java. However, the syntax of Java
+annotations, as introduced in Java 5~\cite{jls3}, is insufficient to
+express all immutability-related properties. Therefore, we needed to
+use the extended annotation syntax proposed in the Java Specification
+Request 308~\cite{jsr308}. As a proof of concept, the authors of the
+JSR 308 specification created a Checker Framework~\cite{checkers},
+which can be used to build compiler plugins acting as annotation
+processors for the extended syntax.
+
+JimuvaChecker, the checker tool created as part of our work, was
+implemented using the Checker Framework.  Section \ref{sec:framework}
+proceeds to describe the main concepts of the framework. Section
+\ref{sec:checking} contains detailed information on the type system
+and verification implemented in JimuvaChecker.
+
+\section{The Checker Framework}
+\label{sec:framework}
+
+\begin{figure}
+  \centering
+  
+  \subfigure[Example hierarchy of type annotations]{
+    \tikzstyle{block} = [draw, rectangle, fill=blue!10, rounded corners, thick, inner sep=4pt]  
+    \begin{tikzpicture}[auto, node distance=3cm, >=latex]
+      \node [minimum width=6cm] at (2, 1.5) (dummy) {};
+      \node [block] (top) at (2, 1.5) {@Nullable}; 
+      \node [block, below of=top] (bot) at (2, 1.2) {@NonNull}; 
+      \draw [->] (bot) -- (top); 
+    \end{tikzpicture}
+  }
+  \subfigure[The resulting type hierarchy]{
+    \tikzstyle{block} = [draw, rectangle, fill=orange!10, rounded corners, thick, inner sep=4pt]  
+    \begin{tikzpicture}[auto, node distance=3cm, >=latex]
+      \node [block] (top) {@Nullable Object}; 
+      \node [block, below left of=top] (left) {@NonNull Object}; 
+      \node [block, below right of=top] (right) {@Nullable Date}; 
+      \node [block, below right of=left] (bot) {@NonNull Date}; 
+      
+      \draw [->] (bot) -- (left); 
+      \draw [->] (bot) -- (right); 
+      \draw [->] (right) -- (top); 
+      \draw [->] (left) -- (top); 
+      
+    \end{tikzpicture}
+  }
+  \caption{Relations between annotated types in a checker. An arrow from
+    A to B indicates that A is a subtype of B.}
+  \label{fig:example-checker-hierarchy}
+\end{figure}
+
+
+The Checker Framework is a tool which can be used to create new
+annotation processors for Java. Basically, the checkers extend the
+type-checking functionality of the Java compiler itself by introducing
+a hierarchy of \emph{type annotations} on top of the hierarchy
+stemming from simple subclassing and interfacing. Type annotations are
+Java annotations which can be used on any type occurrence, as enabled
+by the syntax extensions of JSR 308. They can be organised in a
+supertype-subtype hierarchy which enhances the existing Java type
+hierarchy.
+
+Figure \ref{fig:example-checker-hierarchy} shows how such an enhanced
+type hierarchy works. Here, the type annotation @NonNull is defined to
+be a subtype of the default annotation @Nullable. Subtyping in the
+resulting type hierarchy may come from two sources: normal Java
+subclassing and the subtyping between type annotations.
+
+Normally, a pluggable type checker works by extending the
+functionality of the simple \texttt{BaseTypeChecker} shipped with the
+framework. The \texttt{BaseTypeChecker} verifies that all assignments,
+including implicit ones such as the assignment of parameters to formal
+arguments of methods during method invocation, follow the subtyping
+rules. Specifically, if a value of type $B$ is assigned to a reference
+of type $B$, the checker verifies that $B$ is a subtype of $A$ as per
+the enhanced type hierarchy.
+
+A checker based on the Checker Framework usually consists of two main
+modules:
+\begin{itemize}
+\item the \textbf{annotated type factory}, which provides syntactical
+  constructs of the Java language with type annotations according to a
+  given set of rules,
+\item the \textbf{visitor} which traverses the nodes of the abstract
+  syntax tree (AST) of the given compilation unit and verifies
+  properties based on their annotated types inferred by the annotated
+  type factory. This module acts upon the AST by making use of the
+  Visitor design pattern~\cite{visitor1, visitor2}. Of course, the properties to
+  be checked are not limited to simple subtyping checking; one may
+  implement any rule which the code being compiled will be checked
+  against.
+\end{itemize}
+Figure \ref{fig:simple-checker} contains the schema of how the modules
+of a checker work to verify the properties of a given source code
+file.
+
+\begin{figure}
+  \centering
+
+  \tikzstyle{block} = [draw, rectangle, fill=orange!10, minimum
+  width=3cm, minimum height=0.6cm, rounded corners, inner sep=4pt, thick]
+  \begin{tikzpicture}[auto, node distance=3cm, >=latex]
+    \node [block, fill=blue!10] (compiler) at (5, 5) {\texttt{javac -processor checkers.x.XChecker code.java}};
+    \node [block, fill=orange!10] (checker) at (5, 4) {XChecker}; 
+    \node [block, fill=yellow!20, node distance=5cm, pin={[pin edge={latex-, thin, black}] above:{source code}}] 
+    (code) at (0, 3) {\texttt{code.java}};
+    \node [block] (visitor) at (3, 1) {XVisitor};
+    \node [block] (factory) at (9, 1) {XAnnotatedTypeFactory};
+
+    \draw [->, dashed] (compiler) -- (checker);
+    \draw [->, dashed] (checker) -- (factory);
+    \draw [->, dashed] (checker) -- (visitor);
+    \draw [->] (visitor.east) [bend left] edge node [above] {\small{elements}} (factory.west); 
+    \draw [<-] (visitor.east) [bend right] edge node [below] {\parbox[c]{1cm}{\small{assign types}}} (factory.west);
+    \draw [->] (visitor) edge node {\parbox[c]{1.2cm}{\small{check} \tiny{(Visitor pattern)}}} (code);
+  \end{tikzpicture}
+
+  \caption{A simplified schema of source code file analysis by a
+    Checker Framework-based checker.}
+  \label{fig:simple-checker}
+\end{figure}
+
+\section{Structure of the checker}
 
 Basically, JimuvaChecker is an annotation processor for Java 7 which
 aims to verify that the given programs contain no immutability
@@ -1982,7 +1969,7 @@ is itself annotated with \texttt{@Peer}.
 \subsection{Enforcing the safety of \texttt{@Safe} values}
 
 \texttt{@Safe} method parameters are a way of implementing Jimuva's
-concept of ownership-polymorphic methods in our checker. Encapsulated
+concept of owner-polymorphic methods in our checker. Encapsulated
 values -- annotated with \texttt{@Peer} or \texttt{@Rep} may be passed
 as safe parameters to methods. Therefore, elements annotated by
 \texttt{@Safe} should be protected in a special way in order to
@@ -2073,16 +2060,31 @@ rule must be applied:
   \item all fields of $C$ must be \texttt{protected}, \texttt{private} or \texttt{final}.
   \end{enumerate}
 \end{verrule}
+
 Whenever a violation occurs inside a method or constructor which is
 implicitly annotated, the error message printed by JimuvaChecker will
 contain a relevant note, so that the user is not confused that the
 checker verifies an annotation which is not present in their code.
 
-Let us complete the set of rules with one which applies to checked
-code:
+Let us complete the set of rules with a self-explanatory rule which
+applies to checked code:
 \begin{verrule}[Immutable class instancing]
   Any object of an immutable class must be immutable. 
 \end{verrule}
+
+\section{Conclusions}
+
+\todo{Conclude on the checker, explain why invariants hold}
+
+\chapter{Related work}
+
+\todo{Related work}
+
+\appendix
+
+\chapter{Error messages reference}
+
+\todo{User reference for the error messages printed by JimuvaChecker}
 
 \addcontentsline{toc}{chapter}{References}
 \bibliography{biblio.bib}{}
