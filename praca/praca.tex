@@ -1124,7 +1124,7 @@ immutable objects is checked. We may want to be able to construct
 objects which are provably immutable even when the code using them is
 unchecked. The property of \emph{immutability in an open world} is also
 pursued in JimuvaChecker:
-\begin{invariant}[Immutability in an open world]
+\begin{invariant}[Immutability in an open world] \label{inv:open}
   If a class $C$ is annotated with \texttt{@ImmutableClass}, each
   object of class $C$ does not mutate, provided that $C$ is not
   illegally subclassed.
@@ -1464,6 +1464,9 @@ objects.
     expression are the same as the access rights to \texttt{x}.
   \end{enumerate}
 \end{verrule}
+Additionally, the \texttt{@Myaccess} annotation on any element within
+an \texttt{@ImmutableClass} is immediately resolved to
+\texttt{@Immutable}.
 
 Because \texttt{@Myaccess} can be resolved to \texttt{@Immutable}
 using the above rule, values annotated with \texttt{@Myaccess} must be
@@ -1789,14 +1792,14 @@ Note that Rule \ref{vrl:deepimm} also applies to the receivers of
 read-only methods, which are implicitly immutable by
 Rule~\ref{vrl:readonly}. 
 
-In point (\ref{pnt:deep-array}) of the rule, if the fields of the
+In point \ref{pnt:deep-array} of the rule, if the fields of the
 array $v$ are arrays declared as members of $w$'s state with the
 syntax like
 \begin{center}
   \texttt{protected Object @Rep [] @Rep [];}
 \end{center}
-then the fields of the arrays cannot be reassigned. This also applies
-to deeper levels of array nesting.
+then the fields of the arrays also cannot be reassigned. This applies
+to deeper levels of array nesting as well. 
 
 \paragraph{Checking \texttt{@OwnedBy} validity} \crlf
 
@@ -1808,10 +1811,27 @@ single identifier or a non-empty chain of identifiers (of the form
 $x_1.x_2.\cdots.x_n$). The first identifier in the chain refers to the
 \emph{base} object or class, which must be in the annotated object's
 scope, whilst the other identifiers identify a member reachable
-through the base's public fields. Objects of the class
+through the base's public fields.
+
+$$ \mathtt{@OwnedBy("}\underbrace{\mathtt{list}}_{\mathclap{\textrm{base}}} 
+\mathtt{.}
+\underbrace{\mathtt{next.next}}_{\mathclap{\textrm{member path}}}\mathtt{")} $$
+
+Objects of the class
 \texttt{JimuvaVisitor.Owner} represent the owners. The constructors of
 the class parse the arguments of \texttt{@OwnedBy} annotations and
 signal any errors found therein.
+
+The constructors first search the current scope for an element with
+the same name as the base. To this end, the
+\texttt{JimuvaVisitorState} stores a stack representing blocks with
+declared variables. This stack, as well as the methods and classes
+enclosing the place of code being inspected, are scanned for a
+matching element. If such an element is found, the algorithm proceeds
+to scan the class whose instance the base is, as well as its
+superclasses, for a member matching the first element of the
+patch. The process continues with the class of this path element and
+the next element.
 
 An important feature here is that \texttt{Owner} objects store the
 annotated types of the owner objects. This enables the checker to
@@ -1837,7 +1857,6 @@ stricter as the access rights of the owner object:
   rights of $x$ are changed to \texttt{@Myaccess} provided that $x$ is
   not already annotated with \texttt{@Immutable}.
 \end{verrule}
-
 
 \paragraph{Resolving ownership} \crlf
 
@@ -1905,12 +1924,13 @@ remains unchanged and \texttt{@Rep} values cannot be returned from
 methods or directly accessed at all.
 
 \begin{verrule}[Resolving ownership: member access and return values]
+  \label{vrl:res:acc}
   If the expression $x$ evaluates to a reference annotated with
   the ownership specification $T$, then:
   \begin{enumerate}[label=(\arabic*)]
   \item if $v$ is a field of $x$ annotated with \texttt{@Peer}, then
     the ownership of the expression \texttt{x.v} is resolved to $T$;
-  \item if the method \texttt{m} has a return value which is annotated
+  \item \label{pnt:peer-ret} if the method \texttt{m} has a return value which is annotated
     with \texttt{@Peer}, then the ownership of the expression
     \texttt{x.m($\vec{p}$)} is resolved to $T$.
   \end{enumerate}
@@ -1950,9 +1970,119 @@ and of the object on which the method is invoked.
   \end{enumerate}
 \end{verrule}
 
+For an example on ownership resolving, please consider the class
+\texttt{PeerStack} defined on page \pageref{lst:stack-peer}. Inside
+the \texttt{pop()} method, the \texttt{result} variable is annotated
+with \texttt{@Peer} and is assigned a value returned from
+\texttt{head.getData()}. The assignment is correct by point
+\ref{pnt:peer-ret} of Rule~\ref{vrl:res:acc}, because
+\texttt{getData()} returns a \texttt{@Peer} value, and \texttt{head}
+is itself annotated with \texttt{@Peer}.
+
 \subsection{Enforcing the safety of \texttt{@Safe} values}
 
+\texttt{@Safe} method parameters are a way of implementing Jimuva's
+concept of ownership-polymorphic methods in our checker. Encapsulated
+values -- annotated with \texttt{@Peer} or \texttt{@Rep} may be passed
+as safe parameters to methods. Therefore, elements annotated by
+\texttt{@Safe} should be protected in a special way in order to
+satisfy the encapsulation property specified on
+page~\pageref{inv:encap}. Namely, no static aliases may be created to
+safe values.
+
+This condition is partially enforced by the subtyping rule itself: as
+shown in Figure~\ref{fig:hierarchy}, \texttt{@Safe} is the supertype
+of all ownership specifications. The subtyping mechanism implemented
+in JimuvaChecker thus ensures that a safe value will never be assigned
+to a non-safe value. However, checked code may also call unchecked
+methods. In that case, the subtyping rule will be of no use, as there
+will be no ``requirements'' present on the method parameters. 
+
+The following rules must be enforced to ensure that no static aliases
+are created to safe values:
+
+\begin{verrule}[Direct safety]
+  A safe value may never be assigned to fields. 
+\end{verrule}
+
+\begin{verrule}[Indirect safety]
+  A safe value may never be passed as a non-safe parameter to a method. 
+\end{verrule}
+
+When an object is safe, we should protect from static aliasing not
+only the object itself, but also the objects its transitive reach.
+Consider the following example. Again, it uses a \texttt{PeerStack}
+(page~\pageref{lst:stack-peer}), but imagine that the \texttt{head}
+field and the \texttt{Cell<T>} class are public:
+\begin{lstlisting}
+  public class StackViolator<T> {
+    private Cell<T> f;
+    void violate(@Safe PeerStack<T> s) {
+      f = s.head;
+    }
+  }
+\end{lstlisting}
+If it were only for the above safety rules, the assignment would
+typecheck and would produce a static alias to an object which is owned
+by the owner of \texttt{s} and should be encapsulated. The violation
+stems from the fact that \texttt{s.head} is not protected in any way.
+
+The rule below completes the rules necessary to protect the safety of
+values. Note that only \texttt{@Peer} objects must be protected
+because \texttt{@Rep} objects are not accessible through return values
+and member access.
+\begin{verrule}[Transitive reach safety]
+  If \texttt{x} is a safe value, and:
+  \begin{enumerate}[label=(\arabic*)]
+  \item if \texttt{f} is a \texttt{@Peer} field of \texttt{x}, the
+    expression \texttt{x.f} is also safe, 
+  \item if a method \texttt{m} of \texttt{x} returns a \texttt{@Peer}
+    value, the expression \texttt{x.m($\vec{p}$)} is also safe. 
+  \end{enumerate}
+\end{verrule}
+
 \subsection{Handling immutable classes}
+
+Immutable classes (annotated with \texttt{@ImmutableClass}) have a
+special place in JimuvaChecker's type system. Instances of immutable
+classes are the objects that satisfy the crucial property --
+immutability in an open world -- defined on
+page~\pageref{inv:open}. Therefore, immutable classes should contain
+some additional means of protection so that their state may not be
+mutated by unchecked code.
+
+There are several dangers to the open world immutability
+here. Firstly, immutable classes may be instantiated with any
+constructor they define, so no constructor should be allowed to leak a
+reference to the object being constructed. Secondly, no checking is
+performed for method calls from unchecked code. Therefore, all methods
+must be read-only to prevent modification of the object's
+state. Thirdly, if an immutable class has a non-final public field,
+the field may be accessed and reassigned by unchecked code. Note that
+in the latter case, protected fields are not a problem, as we assume
+that immutable classes are not illegally instantiated, i.e. all their
+subclasses are also immutable.
+
+In order to protect the immutability of the instances, the following
+rule must be applied:
+\begin{verrule}[Immutable classes]
+  If $C$ is an immutable class, 
+  \begin{enumerate}[label=(\arabic*)]
+  \item all constructors of $C$ are implicitly annotated with \texttt{@Anonymous},
+  \item all methods of $C$ are implicitly annotated with \texttt{@ReadOnly},  
+  \item all fields of $C$ must be \texttt{protected}, \texttt{private} or \texttt{final}.
+  \end{enumerate}
+\end{verrule}
+Whenever a violation occurs inside a method or constructor which is
+implicitly annotated, the error message printed by JimuvaChecker will
+contain a relevant note, so that the user is not confused that the
+checker verifies an annotation which is not present in their code.
+
+Let us complete the set of rules with one which applies to checked
+code:
+\begin{verrule}[Immutable class instancing]
+  Any object of an immutable class must be immutable. 
+\end{verrule}
 
 \addcontentsline{toc}{chapter}{References}
 \bibliography{biblio.bib}{}
