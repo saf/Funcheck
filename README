@@ -1,0 +1,29 @@
+JimuvaChecker
+Sławomir Rudnicki 2010--2011
+============================
+
+JimuvaChecker is an immutability checker based on the Jimuva type
+system created within S. Rudnicki's M.Sc. thesis. 
+
+* COMPILING
+
+The Checker Framework, along with JimuvaChecker, needs to be compiled
+prior to running by issuing the command 
+
+  $ ant bindist
+
+in the 'checkers' directory. 
+
+* RUNNING
+
+The Checker Framework contains its own instance of the Java compiler
+javac. The simplest way to run JimuvaChecker is to run the following
+command:
+
+  $ ./javac -processor checkers.fun.jimuva.JimuvaChecker <file.java>
+
+* EXAMPLES
+
+The directory 'examples/checkers/fun/examples' contains a few example
+files created in order to test JimuvaChecker. 
+
