@@ -39,6 +39,7 @@ import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.element.VariableElement;
+import javax.lang.model.type.TypeKind;
 
 /**
  * Determines annotations based on rules governing Funcheck's annotations.
@@ -182,7 +183,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             /* Add @Safe annotation to members of @Safe objects to protect their transitive reach */
             /* (Only @Rep and @Peer objects must be protected) */
             if (expElemType.hasAnnotation(checker.SAFE)
-                    && (type.hasAnnotation(checker.PEER) || type.hasAnnotation(checker.REP))) {
+                    && type.hasAnnotation(checker.PEER)) {
                 type.addAnnotation(checker.SAFE);
             }
         }
@@ -314,6 +315,10 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
     public AnnotatedDeclaredType getSelfType(Tree tree) {
         AnnotatedDeclaredType type = super.getSelfType(tree);
         type.addAnnotation(checker.THIS);
+        if (!type.hasAnnotation(checker.IMMUTABLE)
+                && !type.hasAnnotation(checker.MYACCESS)) {
+            type.addAnnotation(checker.MUTABLE);
+        }
         return type;
     }
 
@@ -332,7 +337,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             type.addAnnotation(checker.MUTABLE);
         }
 
-        if (type instanceof AnnotatedExecutableType) {
+        if (type.getKind() == TypeKind.EXECUTABLE) {
             AnnotatedExecutableType ext = (AnnotatedExecutableType) type;
             if (type.getElement().getKind() != ElementKind.CONSTRUCTOR) {
                 implicitAccessRights(ext.getReceiverType());
@@ -341,12 +346,16 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             for (AnnotatedTypeMirror t : ext.getParameterTypes()) {
                 implicitAccessRights(t);
             }
-        } else if (type instanceof AnnotatedArrayType) {
+        } else if (type.getKind() == TypeKind.ARRAY) {
             AnnotatedArrayType art = (AnnotatedArrayType) type;
             implicitAccessRights(art.getComponentType());
+        } else if (type.getKind() == TypeKind.DECLARED) {
+            AnnotatedDeclaredType dt = (AnnotatedDeclaredType) type;
+            for (AnnotatedTypeMirror arg : dt.getTypeArguments()) {
+                implicitAccessRights(arg);
+            }
         }
     }
-
 
     /**
      * Resolve the @Myaccess type using the access rights type of an enclosing object.
@@ -418,8 +427,6 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         flowQuals.add(checker.THIS);
         flowQuals.add(checker.NOT_THIS);
         flowQuals.add(checker.MAYBE_THIS);
-        flowQuals.add(checker.SAFE);
-        flowQuals.add(checker.ANYOWNER);
         return flowQuals;
     }
 

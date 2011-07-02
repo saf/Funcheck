@@ -68,9 +68,9 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
     protected Protection getProtection(AnnotatedTypeMirror t) {
         AnnotatedTypeMirror methodReceiver = state.getCurrentMethod().getReceiverType();
-        if (t.hasAnnotation(checker.IMMUTABLE)) {
+        if (t != null && t.hasAnnotation(checker.IMMUTABLE)) {
             return Protection.IMM;
-        } else if (t.hasAnnotation(checker.MYACCESS)
+        } else if (t != null && t.hasAnnotation(checker.MYACCESS)
                 && methodReceiver != null
                 && methodReceiver.hasAnnotation(checker.IMMUTABLE)) {
             return Protection.MYACC;
@@ -379,15 +379,11 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             checker.report(Result.failure("anonymous.returns.this"), node);
         }
 
-        /* Prohibit returning a @Rep object. This is only allowed in the case of private or
-         * protected methods or ImmutableClasses. */
+        /* Prohibit returning a @Rep object. */
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node.getExpression());
         if (type.hasAnnotation(checker.REP)) {
             ExecutableElement currentMethod = state.getCurrentMethod().getElement();
-            if (currentMethod.getModifiers().contains(Modifier.PUBLIC)
-                    || state.getCurrentClass().hasAnnotation(checker.IMMUTABLE_CLASS)) {
-                checker.report(Result.failure("returning.rep", node.getExpression().toString()), node);
-            }
+            checker.report(Result.failure("returning.rep", node.getExpression().toString()), node);
         }
 
         return super.visitReturn(node, p);
