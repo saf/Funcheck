@@ -72,7 +72,16 @@
 \maketitle
 
 \begin{abstract}
-  \todo{Abstract}
+  A Java object is \emph{immutable} if at any point of the execution
+  of the program after the object is constructed, its observable state
+  remains the same. The properties of object and reference
+  immutability are useful in program verification as they simplify the
+  reasoning about the possible states of the whole system. 
+
+  This work presents JimuvaChecker, a pluggable checker for object
+  immutability of Java objects. The checker is based on the Checker
+  Framework and relies on the language extensions introduced in
+  JSR 308.
 \end{abstract}
 
 \tableofcontents
@@ -82,11 +91,197 @@
 \chapter{Introduction}
 \label{chap:intro}
 
-\todo{About the thesis}
+This thesis contains a description of JimuvaChecker, a tool which
+verifies the properties related to object immutability and ownership
+in the Java programming language.
+
+The object immutability property can be informally expressed in the
+following way: an object $P$ is \emph{immutable} if it is impossible
+for other objects to observe two distinct states of $P$. In other
+words, the state of $P$ cannot be changed throughout its lifespan,
+starting from when the object has finished its construction phase.
+
+Why would we need objects that are provably immutable? The concept of
+object immutability turns out to have multiple applications in
+object-oriented programming and program verification. For example,
+using immutable objects in a multi-threaded environment is obviously
+safe. Section \ref{sec:imm-general} provides more examples on how
+immutable objects contribute to simplifying the reasoning about
+Java programs.
+
+Many approaches have been taken to the verification of object
+immutability in Java and similar, simplified languages. One of the
+approaches is the Jimuva type system introduced by Haack, Poll,
+Schäfer and Schubert in \cite{haack}. The type system aims to prove
+the immutability of particular objects in a limited, Java-like
+language extended with object immutability and ownership
+specifications.
+
+The objective of our work is to adapt the ideas introduced in Jimuva
+so that they apply to the full Java language. Therefore, a checker
+called JimuvaChecker was created, which verifies properties related to
+object immutability and ownership. Basically speaking, the checker
+introduces the concept of \emph{immutable objects} and \emph{immutable
+  classes} whose instances are immutable objects only. The eventual
+aim of the checker is to prove two properties: 
+\begin{enumerate}
+\item \textbf{Object immutability:} No immutable object changes its
+  state if it is used by code checked with JimuvaChecker,
+\item \textbf{Immutability in an open world:} No instance of an
+  immutable class may change its state, even when it is used by code
+  which is not checked by JimuvaChecker. The concept of open-world
+  analysis of Java classes has been further described
+  in~\cite{openworld}.
+\end{enumerate}
+The checker was based on the Checker Framework, a framework for
+creating compiler plug-ins which check properties related to Java
+types. It relies on the extended syntax for Java annotations
+introduced in the JSR 308 proposition.
+
+\section{Contents of this work}
+
+The remainder of this work is divided into three chapters:
+\begin{description}
+\item[Chapter \ref{chap:imm}] contains the motivation of introducing
+  immutable objects, as well as the Jimuva type system which
+  JimuvaChecker is based on,
+\item[Chapter \ref{chap:checker}] describes in detail the project and
+  implementation of the checker,
+\item[Chapter \ref{chap:related}] provides some information on other
+  approaches to verifying object and reference immutability. 
+\end{description}
+This paper also contains two appendices:
+\begin{description}
+\item[Appendix \ref{chap:appendix}] contains a list of error messages
+  issued by the checker for user reference. 
+\item[Appendix \ref{chap:cd}] lists the contents of the CD attached to
+  this work.
+\end{description}
 
 \chapter{Object immutability}
+\label{chap:imm}
 
-\todo{More general information on immutability, motivation}
+This section will present some general information related to the
+notions of object immutability and ownership and present Jimuva -- the
+type system for verifying immutability which this work is based
+upon. Then, in Section \ref{sec:modelling}, we will introduce a way of
+mapping the concepts from Jimuva into the syntax of Java. In Section
+\ref{sec:properties}, the properties verified by JimuvaChecker will be
+defined. 
+
+\section{General information}
+\label{sec:imm-general}
+
+This section contains the description of the benefits brought by
+enforcing object immutability and presents the basic concepts related
+to immutability, including object ownership.
+
+\subsection{Motivation}
+
+Object immutability is a property which is beneficial for the
+verification of programs when using an object-oriented language. It is
+also commonly required of objects to never change their state. This is
+the case with many built-in Java classes, \texttt{String} being the
+most well-known example: Java strings are created anew rather than
+modified in place.
+
+Having provably immutable objects greatly reduces the complexity of
+the reasoning about the whole system. Some specific examples of this
+fact include: 
+\begin{itemize}
+\item \textbf{Object invariants.} Suppose we want to keep an invariant
+  related to the state of an object. Naturally, for immutable objects
+  the state does not change in an observable way, and therefore no
+  invariant can be violated.
+\item \textbf{Thread safety.} Concurrency-related errors are one of
+  the most common ones in object-oriented programming, and the most
+  difficult to track down, as they manifest randomly depending on the
+  order of executed threads. However, many threads may safely act upon
+  immutable objects without the possibility of introducing a data race.
+\item \textbf{State-space reduction.} This point is related to the
+  previous one, but relevant for model checking (i.e. verification of
+  programs by traversing all possible states). When considering
+  immutable objects, we can make the state space significantly smaller
+  by reducing some thread interleavings. For example, when two
+  different objects read a value from an immutable object, it is
+  meaningless which one goes first, as the results will be the same.
+\end{itemize}
+
+What is more, object immutability contributes to the security of
+systems. Objects which are crucial to system security, such as those
+representing permissions or the logged user's credentials read from
+the database, should be made immutable in order to prevent an attack
+based on modifying them. Immutable objects do not change their state
+even in the presence of untrusted components, such as applets
+downloaded from the web. In such case, the integrity of the system may
+be guarded by making all the crucial classes immutable.
+
+\subsection{Concepts}
+
+\subsubsection{Immutability}
+
+Simply speaking, object immutability refers to a situation when the
+observable state of an \emph{immutable object} may not change
+throughout its lifespan. Intuitively, an \emph{immutable class} is a
+class whose instances are all immutable. A more thorough, general
+discussion on how to define object immutability has been published by
+Haack, Poll, Shäfer and Schubert in \cite{jml-imm}. Our approach to
+immutability is generally in line with the conclusions presented
+therein.
+
+For the purpose of this paper, two notions will be introduced:
+\begin{itemize}
+\item \textbf{immutability}, which applies to code verified by the
+  checker created within this work,
+\item \textbf{immutability in an open world}, which is stronger and
+  applies to unchecked code as well. 
+\end{itemize}
+
+The main problem with object immutability is that even immutable
+objects mutate during their construction phase. A semi-formal
+definition of the properties described above, which takes this problem
+into consideration, is presented in Section \ref{sec:properties} of
+this paper.
+
+\subsubsection{Ownership}
+
+Another issue which has to be addressed is: what should we consider to
+be the state of a given object? A compound object may have subobjects
+(objects which they hold a reference to) which contribute to its
+state. For example, the \texttt{char} array holding the characters of
+a \texttt{String} is definitely a part of the \texttt{String}'s
+state. We thus arrive at the concept of \emph{object ownership}, where
+an object may be \emph{owned} by another object. 
+
+Its applications to immutability verification aside, object ownership
+has been proposed for object-oriented languages as a way to support
+encapsulation of an object's internal state~\cite{own-encap} and to
+facilitate reasoning about the relationships between objects, such as
+whether the states of two objects are disjoint~\cite{disjointness}.
+
+There are two basic flavours of object ownership:
+\begin{itemize}
+\item \textbf{owner-as-dominator}, where the owned object is a part of
+  the owner's internal representation. References to such internal
+  objects should not be leaked to outside the owner object. 
+\item \textbf{owner-as-modifier}, which is weaker than the former
+  property by allowing the owner to pass references to internal
+  representation objects to the outside. However, modifying the
+  internal objects is prohibited outside the owner object. 
+\end{itemize}
+In this work, we will pursue an ownership property which lies
+somewhere between the two. Namely, we will allow dynamic aliasing to
+internal representation objects through special \emph{safe} method
+parameters, but disallow creating static aliases to the objects. An
+important feature of our ownership type system is that an object may
+be owned by almost any other object within its scope.
+
+Several previous approaches to implement various flavours of object
+immutability and ownership will be described in Chapter
+\ref{chap:related}. The following section will present one of the
+attempts: the Jimuva type system and language devised by Haack, Poll,
+Schäfer and Schubert, which this work, including the JimuvaChecker
+tool, is based upon.
 
 \section{Jimuva}
 \label{sec:jimuva}
@@ -482,9 +677,9 @@ representation of objects is protected in JimuvaChecker.
 \label{sec:mod:ownership}
 
 The ownership specifications introduced in Jimuva are very liberal: an
-object may be owned by any other object within its scope. \todo{true?}
-There are several ownership variables which can be used in place of
-object identifiers in the ownership specification of an object. 
+object may be owned by any other object within its scope.  There are
+several ownership variables which can be used in place of object
+identifiers in the ownership specification of an object.
 
 Table \ref{tab:mapping-owner} shows how the different possible
 ownership specifications are reflected into Java type annotations.
@@ -847,6 +1042,7 @@ Section \ref{sec:chk:safe} provides more details on the
 enforcing of parameter safety in JimuvaChecker.
 
 \section{Immutability properties}
+\label{sec:properties}
 
 \subsection{Preliminary discussion and definitions}
 
@@ -990,6 +1186,7 @@ pursued in JimuvaChecker:
 
 
 \chapter{The JimuvaChecker tool}
+\label{chap:checker}
 
 This chapter will present JimuvaChecker, the checker tool created as
 part of this thesis. We aimed to implement the concepts of the
@@ -2092,17 +2289,289 @@ applies to checked code:
 
 \section{Conclusions}
 
-\todo{Conclude on the checker, explain why invariants hold, list possible extensions}
+JimuvaChecker is a complete tool for verifying object immutability, as
+well as class immutability in an open world. As a compiler plug-in,
+the checker is easy to use and may be smoothly integrated into the
+normal development process of any Java system. It can help avoid and
+fight common errors related to object immutability. 
+
+We do not aim to provide in this paper a complete, formal proof that
+every program which type-checks properly using JimuvaChecker is
+correct with regards to the immutability and representation
+encapsulation invariants, as specified on pages \pageref{inv:open} and
+\pageref{inv:encap} respectively. The correctness property may be
+derived by analogy from the correctness of the Jimuva type system, at
+least in the fragment of the Jimuva language which were modelled in
+JimuvaChecker in a direct way. 
+
+There are constructs for which the mapping of Jimuva into Java is not
+so straightforward -- for example owner-polymorphic methods, which are
+modelled using \texttt{@Safe} and \texttt{@AnyOwner} method
+parameters. In order to demonstrate that the desired properties hold
+in these cases, we might refer to the \emph{object-capability model}
+description \cite{object-cap} of the Java language. The model states
+that:
+\begin{enumerate}
+\item an object may interact with another object only through a
+  reference (a reference serves as a \emph{capability} to interact
+  with the object, hence the model's name),
+\item an object $A$ may obtain a reference to another object $B$ only
+  by means of:
+  \begin{itemize}
+  \item \textbf{parenthood} -- when $A$ creates the object $B$, 
+  \item \textbf{endowment} -- when $B$ creates $A$, it may choose to
+    \emph{endow} it with some of the references it already owns,
+    including a reference to itself, by passing them to the
+    constructor,
+  \item \textbf{introduction} -- when an object sends $A$ a reference
+    to $B$ through a parameter of a method call or through the value
+    returned from a method.
+  \end{itemize}
+\end{enumerate}
+The model relies on the fact that references to objects cannot be
+forged. While this is not the case with lower-level languages such as
+C, Java -- with a few exceptions such as static methods and direct
+field assignments on foreign objects -- may be considered an
+object-capability language. This allows for a structured reasoning
+about passing references to immutable objects and to their internal
+representation, which would be needed to derive the correctness of our
+type system.
+
+\subsection{Future work}
+
+JimuvaChecker still does not cover some of the more sophisticated
+constructs of Java. Among the possible extensions are:
+\begin{itemize}
+\item Allowing the static fields of any class to be owners of objects
+  through the use of reflection, 
+\item Introducing immutable class support into Java's reflection
+  mechanism. Currently, the checker is oblivious to the fact that a
+  class is an \texttt{@ImmutableClass} if the class is loaded
+  dynamically via reflection.
+\end{itemize}
+
+The checker can also be extended into another area, which is related
+to object immutability: method purity and determinism. 
+
+A method should be considered \emph{pure} if it does not modify the
+state of any object, and a class would be called \emph{pure} if it is
+immutable and all methods are pure. There are several approaches to
+verifying method purity. For the purpose of extending JimuvaChecker
+with a purity checker, the most suitable one seems to be the modular
+type system JPure \cite{jpure}.
+
+A method should be considered \emph{deterministic} if its result is
+the same whenever it is called with the same arguments (the receiver
+being treated as an additional argument). It is apparent here that the
+concept of ownership would play an important role here, as it would
+help define what it means that method arguments are the same by
+introducing the deep state of objects. 
+
+The only approach to verifying the deterministism of Java methods we
+are aware of has been created within Joe-E \cite{deterministic}. Joe-E
+itself is a subset of Java which strictly adheres to the rules of the
+object-capability model described above. The verification of method
+determinism introduces shallow-state immutability through the use of
+the \texttt{final} modifier and a method is considered deterministic
+if all its arguments, including the receiver, are immutable. While
+this, along with the properties of the object-capability model, does
+guarantee method determinism, this seems to be too strict. Another
+approach, relying on deep states to compare objects, could be taken to
+prove that Java methods are deterministic.
 
 \chapter{Related work}
+\label{chap:related}
 
-\todo{Related work}
+In this chapter, we will recall some of the previous attempts at
+creating type systems for verification of object ownership and
+immutability, and at implementing relevant checkers. We will also
+reflect on how those approaches relate to our work.
+
+\section{Ownership type systems}
+
+Ownership type systems have been a matter of interest for researchers
+for over a decade now. The main issue which has to be tackled has
+already been mentioned in this work: simultaneously maintaining
+sufficient expressiveness of the language and the neccessary
+encapsulation of internal representation of objects. 
+
+\subsection{Boyapati et al.'s ownership types}
+
+Boyapati et al.~\cite{own-encap} introduced an ownership type system
+for a Java-like language obtained by extending object types with
+ownership specifications. Their explicit ownership variables are
+limited to \texttt{this} and \texttt{world} (apart from those, Jimuva
+has \texttt{peer} and any object identifier). However, their language
+is expressive enough -- it may for example express iterators --
+because of the owner-polymorphism which allows for more than one
+ownership parameters for classes and methods. Let us look at an
+implementation skeleton of a stack holding values of type \texttt{T}.
+
+\begin{lstlisting}
+class TStack<stackOwner, TOwner> {
+  TNode<this, TOwner> head;
+  ...
+}
+
+class TNode<nodeOwner, TOwner> {
+  TNode<nodeOwner, TOwner> next;
+  T<TOwner> value; 
+}
+\end{lstlisting}
+
+The classes are parameterized not only with their own ownership (via
+the \texttt{stackOwner} and \texttt{nodeOwner} variables), but also
+with the variable \texttt{TOwner} representing the owner of the stack
+elements. This allows the class to be instantiated in multiple ways:
+\begin{lstlisting}
+class TStackClient<clientOwner> {
+  TStack<this, this> s1 = new TStack<this, this>();
+  TStack<this, world> s2 = new TStack<this, world>();
+  TStack<world, world> s3 = new TStack<world, world>();
+}
+\end{lstlisting}
+which would require the \texttt{@Peer} annotation in our type system. 
+
+\subsection{Universes}
+
+A different approach has been taken by Dietl and Müller in their
+Universes type system~\cite{universes}. The general idea behind their
+work was to organize objects into \emph{contexts} or \emph{ownership
+  domains} which share the same owner. This is done by employing the
+two keywords which are also used in JimuvaChecker: \texttt{rep} to
+denote an object owned by the referencing object and \texttt{peer} to
+denote an object within the same context as the referencing
+object. Owner-as-modifier encapsulation is enforced by ensuring that
+there no read-write references to an object are present outside of the
+context the object belongs in. Read-only references, on the other
+hand, may be freely shared with the outside world.
+
+\subsection{ArchJava}
+
+In Universes, a single ownership domain is bound to every object. This
+was considered to be an important limitation by Aldrich and
+Chambers~\cite{domains}, who developed an ownership type system used
+in the ArchJava system for enforcing the proper architectural
+structure for Java programs. The ownership type system allows the user
+to specify multiple ownership domains for one object. To overcome the
+restrictions imposed by encapsulation of representation, ownership
+domains can be \emph{linked} so that one can access the other across
+domain boundaries. Both Universes and ArchJava are expressive enough
+to allow implementing iterators and other important design patterns. 
+
+\section{Javari: reference immutability}
+
+The Javari language and checker \cite{javari} deals with the problem
+of reference immutability rather than object immutability. A reference
+is immutable if it cannot be used to modify the state of the object it
+points to. Syntactically, an immutable reference is marked with the
+\texttt{readonly} keyword, for example:
+
+\begin{center}
+  \texttt{ElectionResults tabulate(readonly Ballots votes) \{ ... \}}
+\end{center}
+
+The state of an object is understood in a deep way, just as in our
+approach. Instead of explicitly stating which objects do belong to the
+state of the referring object, however, the user excludes references
+from the state by annotating them with the \texttt{assignable}
+keyword. This could be considered as a limited ownership type system,
+with only the \texttt{@Rep} annotation present. Other than that,
+Javari does not provide object ownership specifications. Underneath
+the verification process in Javari is a typing system not unlike the
+immutability-related portion of the Jimuva type system, which
+statically enforces the property that no object may be modified using
+a \texttt{readonly} reference.
+
+A complete implementation of the Javari checker has been developed
+using the Checkers Framework, with the additional keywords being
+mapped to Java (JSR 308) annotations. The checker is currently shipped
+along with the framework.
+
+\section{OIGJ: Ownership Immutability Generic Java}
+
+OIGJ, or Ownership Immutability Generic Java~\cite{oigj}, is in fact a
+combination of two type systems:
+\begin{itemize}
+\item \textbf{Immutability Generic Java (IGJ)} -- a statically
+  checkable type system for verifying object and reference
+  immutability~\cite{igj, enforcing-igj}.
+  
+  The type system introduces three types for object references:
+  mutable, read-only and immutable. The difference between the latter
+  two is that a read-only reference may point both to mutable and
+  immutable objects, and an immutable reference may only point to
+  immutable objects. In order to handle the problem that immutable
+  objects may be modified while they are being constructed, a special
+  \texttt{AssignsFields} annotation is introduced for methods which
+  allows them to assign the fields of \texttt{this}.
+
+  The ownership system in IGJ is almost identical to the one in the
+  Javari type system, with immutability concerning transitive states
+  of objects, as well as the \texttt{@Assignable} annotation on fields
+  to exclude them from the parent object's state. 
+\item \textbf{Ownership Generic Java (OGJ)} -- a type system for
+  encapsulation of representation using
+  ownership~\cite{ogj}. Syntactically, the aim is achieved by
+  extending the types of objects with a generic-like type parameter
+  which represents ownership. Thus, an object may be specified as:
+  \begin{itemize}
+  \item \texttt{Object<World>},
+  \item \texttt{Object<This>}, which is equivalent to our
+    \texttt{@Rep} annotation, 
+  \item \texttt{Object<M>}, where \texttt{M} is a static owner
+    constant which is only visible within a package. The object is
+    thus owned by the package and not any object allocated on the
+    heap. This leads to a situation when the object cannot be used
+    outside the package where \texttt{M} is visible.
+  \end{itemize}
+
+  OGJ contains a mechanism for owner-polymorphic methods, which can be
+  expressed in a simple way within the syntax of Java because the
+  whole system relies on Java generics rather than annotations. An
+  example of the syntax is given below:
+  \begin{lstlisting}
+<NameO extends World> addNewName(String name) {
+  this.map.put(new Name<NameO>(name), null);
+}
+  \end{lstlisting}
+\end{itemize}
+
+OIGJ puts the two systems described above together to form a complete
+type system for object immutability and ownership. The checker
+provides two ownership annotations to replace OGJ's
+\texttt{Object<This>} type: \texttt{@Dominator} and \texttt{@Modifier}
+which express the two ownership paradigms: \emph{owner-as-dominator}
+and \emph{owner-as-modifier}. In this sense, it is more flexible than
+JimuvaChecker by allowing the user to choose the ownership enforcing
+method. However, both annotations indicate that the annotated object
+is owned by \texttt{this}. The ownership specification system is thus
+more limited than the one of Jimuva and Universes, not allowing
+objects other than \texttt{this} to be owners of objects referenced by
+fields.
+
+Similarly to JimuvaChecker, the checker for OIGJ works by checking
+user code against a set of rules. Even though the language discussed
+theoretically in IGJ and OIGJ papers relies on Java generics, the
+implementation maps the relevant generic type arguments into
+annotations. The implementations of both IGJ and OIGJ are based on the
+Checkers Framework and, like the Javari checker, they are shipped
+along with the framework.
 
 \appendix
 
 \chapter{Error messages reference}
+\label{chap:appendix}
 
-\todo{User reference for the error messages printed by JimuvaChecker}
+The following list contains a reference for all error messages issued
+by JimuvaChecker, with an additional explanation if needed. 
+
+
+
+\chapter{CD contents}
+\label{chap:cd}
+
+\todo{CD contents}
 
 \addcontentsline{toc}{chapter}{References}
 \bibliography{biblio.bib}{}
