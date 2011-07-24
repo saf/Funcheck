@@ -137,7 +137,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         AnnotatedExecutableType meth = state.getCurrentMethod();
         if (el.getKind().isField()
                 && el.getModifiers().contains(Modifier.PUBLIC)
-                && type.hasAnnotation(checker.REP)) {
+                && type.hasAnnotation(checker.REP)
+                && !type.hasAnnotation(checker.IMMUTABLE)) {
             checker.report(Result.failure("public.rep.field", el.getSimpleName()), node);
         }
         if (el.getKind().isField()
@@ -146,13 +147,6 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 && !el.getModifiers().contains(Modifier.FINAL)) {
             checker.report(Result.failure("public.field.of.immutable.class",
                     el.getSimpleName(), state.getCurrentClassName()), el);
-        }
-
-        /* Disallow @Mutable @Rep fields to protect the internal state of @Immutable objects. */
-        if (el.getKind().isField()
-                && type.hasAnnotation(checker.REP)
-                && type.hasAnnotation(checker.MUTABLE)) {
-            checker.report(Result.failure("mutable.rep.field", el.getSimpleName()), el);
         }
 
         /* In static methods and constructors, prohibit the use of @Myaccess */
@@ -289,11 +283,9 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             }
         }
 
-        if ((!TreeUtils.isSelfAccess(node)
-                || (receiver != null && !receiver.hasAnnotation(checker.THIS)))
-                && !(receiver != null && receiver.hasAnnotation(checker.REP))) {
+        if ((!TreeUtils.isSelfAccess(node) && (receiver != null && !receiver.hasAnnotation(checker.THIS)))) {
             /* Check that @Rep objects are not passed to foreign methods */
-            checkArgumentsRep(node.getArguments(), calledMethod.getParameterTypes());
+            checkArgumentsEncap(node.getArguments(), calledMethod.getParameterTypes(), receiver);
         }
 
         if (receiver != null && receiver.hasAnnotation(checker.SAFE)
@@ -381,8 +373,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
         /* Prohibit returning a @Rep object. */
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node.getExpression());
-        if (type.hasAnnotation(checker.REP)) {
-            ExecutableElement currentMethod = state.getCurrentMethod().getElement();
+        if (type.hasAnnotation(checker.REP)
+                && !type.hasAnnotation(checker.IMMUTABLE)) {
             checker.report(Result.failure("returning.rep", node.getExpression().toString()), node);
         }
 
@@ -451,7 +443,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             checkArgumentsAnonymous(node.getArguments());
         }
         AnnotatedExecutableType con = atypeFactory.getAnnotatedType(TreeUtils.elementFromUse(node));
-        checkArgumentsRep(node.getArguments(), con.getParameterTypes());
+        checkArgumentsEncap(node.getArguments(), con.getParameterTypes(), null);
         checkNewReferenceType(node.getIdentifier());
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node.getIdentifier());
         AnnotatedExecutableType constructor = atypeFactory.constructorFromUse(node);
@@ -512,7 +504,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
     public Void visitMemberSelect(MemberSelectTree node, Void p) {
         /* Prevent access to inner representation of a foreign object. */
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node);
-        if (type.hasAnnotation(checker.REP)) {
+        if (type.hasAnnotation(checker.REP)
+                && !type.hasAnnotation(checker.IMMUTABLE)) {
             ExpressionTree expression = node.getExpression();
             AnnotatedTypeMirror selectType = atypeFactory.getAnnotatedType(expression);
             if (selectType.hasAnnotation(checker.MAYBE_THIS)
@@ -648,11 +641,14 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
     /**
      * Validate a call of a foreign method/constructor by checking that no
-     * @Rep objects are passed as arguments.
+     * @Rep or @Peer objects are passed as arguments. They may only be passed
+     * as @Immutable references, @Safe values or to methods whose receivers
+     * are @Rep or @Peer.
      *
      * @param args The list of arguments to be checked.
      */
-    protected void checkArgumentsRep(List<? extends ExpressionTree> args, List<AnnotatedTypeMirror> params) {
+    protected void checkArgumentsEncap(List<? extends ExpressionTree> args,
+            List<AnnotatedTypeMirror> params, AnnotatedTypeMirror receiver) {
         Iterator<? extends ExpressionTree> ait = args.iterator();
         Iterator<AnnotatedTypeMirror> pit = params.iterator();
 
@@ -661,8 +657,16 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             safe = pit.hasNext() ? pit.next().hasAnnotation(checker.SAFE) : safe; /* VarArgs possible */
             ExpressionTree a = ait.next();
             AnnotatedTypeMirror at = atypeFactory.getAnnotatedType(a);
-            if (at.hasAnnotation(checker.REP) && !safe) {
+            if ((receiver == null || !receiver.hasAnnotation(checker.REP))
+                    && at.hasAnnotation(checker.REP)
+                    && !at.hasAnnotation(checker.IMMUTABLE)
+                    && !safe) {
                 checker.report(Result.failure("passing.rep.to.foreign.method", a.toString()), a);
+            } else if ((receiver == null || (!receiver.hasAnnotation(checker.PEER) && !receiver.hasAnnotation(checker.REP)))
+                    && at.hasAnnotation(checker.PEER)
+                    && !at.hasAnnotation(checker.IMMUTABLE)
+                    && !safe) {
+                checker.report(Result.failure("passing.peer.to.foreign.method", a.toString()), a);
             }
         }
     }
