@@ -96,7 +96,7 @@ verifies the properties related to object immutability and ownership
 in the Java programming language.
 
 The object immutability property can be informally expressed in the
-following way: an object $P$ is \emph{immutable} if it is impossible
+following way: an~ object $P$ is \emph{immutable} if it is impossible
 for other objects to observe two distinct states of $P$. In other
 words, the state of $P$ cannot be changed throughout its lifespan,
 starting from when the object has finished its construction phase.
@@ -104,30 +104,31 @@ starting from when the object has finished its construction phase.
 Why would we need objects that are provably immutable? The concept of
 object immutability turns out to have multiple applications in
 object-oriented programming and program verification. For example,
-using immutable objects in a multi-threaded environment is obviously
+using immutable objects in a multi-threaded environment is~obviously
 safe. Section \ref{sec:imm-general} provides more examples on how
 immutable objects contribute to simplifying the reasoning about
 Java programs.
 
 Many approaches have been taken to the verification of object
-immutability in Java and similar, simplified languages. One of the
-approaches is the Jimuva type system introduced by Haack, Poll,
+immutability in Java and~similar, simplified languages. One of the
+approaches is the Jimuva type system introduced by~Haack, Poll,
 Schäfer and Schubert in \cite{haack}. The type system aims to prove
-the immutability of particular objects in a limited, Java-like
-language extended with object immutability and ownership
+the im\-mu\-ta\-bi\-li\-ty of particular objects in a limited,
+Java-like language extended with object immutability and~ownership
 specifications.
 
 The objective of our work is to adapt the ideas introduced in Jimuva
-so that they apply to the full Java language. Therefore, a checker
-called JimuvaChecker was created, which verifies properties related to
-object immutability and ownership. Basically speaking, the checker
-introduces the concept of \emph{immutable objects} and \emph{immutable
-  classes} whose instances are immutable objects only. The eventual
-aim of the checker is to prove two properties: 
+so that they apply to~the~full Java language. To that end, a checker
+called JimuvaChecker was created which ve\-ri\-fies properties related
+to object immutability and ownership. Basically speaking, the~checker
+introduces the concepts of \emph{immutable objects} and
+\emph{immutable classes} (all instances of which are immutable
+objects), as a annotation-based extension to Java syntax. The eventual
+aim of~the~checker is to prove two properties:
 \begin{enumerate}
-\item \textbf{Object immutability:} No immutable object changes its
+\item \textbf{object immutability:} no immutable object changes its
   state if it is used by code checked with JimuvaChecker,
-\item \textbf{Immutability in an open world:} No instance of an
+\item \textbf{immutability in an open world:} no instance of an
   immutable class may change its state, even when it is used by code
   which is not checked by JimuvaChecker. The concept of open-world
   analysis of Java classes has been further described
@@ -150,24 +151,19 @@ The remainder of this work is divided into three chapters:
 \item[Chapter \ref{chap:related}] provides some information on other
   approaches to verifying object and reference immutability. 
 \end{description}
-This paper also contains two appendices:
-\begin{description}
-\item[Appendix \ref{chap:appendix}] contains a list of error messages
-  issued by the checker for user reference. 
-\item[Appendix \ref{chap:cd}] lists the contents of the CD attached to
-  this work.
-\end{description}
+This paper also contains one appendix, Appendix \ref{chap:cd}, which
+lists the contents of the CD attached to this document.
 
 \chapter{Object immutability}
 \label{chap:imm}
 
-This section will present some general information related to the
-notions of object immutability and ownership and present Jimuva -- the
-type system for verifying immutability which this work is based
-upon. Then, in Section \ref{sec:modelling}, we will introduce a way of
-mapping the concepts from Jimuva into the syntax of Java. In Section
-\ref{sec:properties}, the properties verified by JimuvaChecker will be
-defined. 
+The following section will present some general information related to
+the notions of object immutability and ownership. In Section
+\ref{sec:jimuva} we will present Jimuva -- the type system for
+verifying immutability which this work is based upon. Then, in Section
+\ref{sec:modelling}, we will introduce a way of mapping the concepts
+from Jimuva into the syntax of Java. In Section \ref{sec:properties},
+the properties verified by JimuvaChecker will be defined.
 
 \section{General information}
 \label{sec:imm-general}
@@ -259,7 +255,7 @@ encapsulation of an object's internal state~\cite{own-encap} and to
 facilitate reasoning about the relationships between objects, such as
 whether the states of two objects are disjoint~\cite{disjointness}.
 
-There are two basic flavours of object ownership:
+There are two basic flavors of object ownership:
 \begin{itemize}
 \item \textbf{owner-as-dominator}, where the owned object is a part of
   the owner's internal representation. References to such internal
@@ -276,7 +272,7 @@ parameters, but disallow creating static aliases to the objects. An
 important feature of our ownership type system is that an object may
 be owned by almost any other object within its scope.
 
-Several previous approaches to implement various flavours of object
+Several previous approaches to implement various flavors of object
 immutability and ownership will be described in Chapter
 \ref{chap:related}. The following section will present one of the
 attempts: the Jimuva type system and language devised by Haack, Poll,
@@ -804,9 +800,10 @@ be in the same \emph{context} if they share owners. In their work, the
 reference types equivalent to both \texttt{@Rep} and \texttt{@Peer}
 are supertyped by \emph{read-only} references in order to allow
 non-modifying access to an object's context. In Jimuva, as well as in
-our checker, the concepts of ownership and immutability are
-orthogonal. \todo{Allow representation sharing with immutable
-  references?}
+our checker, the concepts of ownership and immutability are more
+orthogonal as they are represented by two separate type
+hierarchies. However, we also allow passing read-only references to
+representation objects to the outside. 
 
 Listing \ref{lst:stack-peer} shows an implementation of a stack using
 both variable ownership specifications \texttt{@Rep} and
@@ -1183,6 +1180,11 @@ pursued in JimuvaChecker:
   object of class $C$ does not mutate, provided that $C$ is not
   illegally subclassed.
 \end{invariant}
+
+An immutable class is \emph{illegally subclassed} if it has a subclass
+which is not immutable. This would break the above invariant as
+protected fields would be prone to modification via the methods of the
+subclass.
 
 
 \chapter{The JimuvaChecker tool}
@@ -1946,7 +1948,8 @@ internal state encapsulation and the immutability property with
 regards to the deep state of objects.
 
 \begin{verrule}[Encapsulation of representation]
-  If $v$ is a value annotated with \texttt{@Rep}:
+  If $v$ is a value annotated with \texttt{@Rep} and not annotated
+  with \texttt{@Immutable}:
   \begin{enumerate}[label=(\arabic*)]
   \item $v$ cannot be returned from methods. 
   \item $v$ cannot be passed as a non-safe parameter to methods of
@@ -1963,14 +1966,23 @@ regards to the deep state of objects.
     expression \texttt{w.v} is erroneous, even if Java visibility
     mechanism would permit such access.
   \end{enumerate}
-  If $v$ is annotated with \texttt{@Peer}, 
+  If $v$ is annotated with \texttt{@Peer} and not annotated with
+  \texttt{@Immutable},
   \begin{enumerate}[label=(\arabic*), resume]
   \item $v$ cannot be passed as a non-safe parameter to methods of
     foreign objects which are not annotated with \texttt{@Rep} or
     \texttt{@Peer}.
   \end{enumerate}
 \end{verrule}
-\vspace{-1cm}
+
+Note that an object may freely share with the outside world the
+immutable references to its internal representation. This is in line
+with Jimuva (cf. the Sub Share subtyping rule of the type system on
+page 12 of~\cite{haack}) and other ownership systems described in
+Section~\ref{sec:rel:ownership}. Naturally, this does not violate
+immutability invariants as the passed references cannot be used to
+modify the representation.
+
 \begin{verrule}[Deep state immutability] \label{vrl:deepimm}
   If $w$ is an immutable object holding a \texttt{@Rep}-annotated
   reference to $v$, then:
@@ -2056,10 +2068,10 @@ stricter as the access rights of the owner object:
 \subsubsection{Resolving ownership} 
 
 One of the main inherent differences between Jimuva and our checker is
-that Java annotations specifying ownership are \emph{relative}. That
-is, the annotation does not refer to a fixed object, and to understand
-which object is actually the owner, one must know the annotation and
-the place of code where the annotated reference is declared. 
+that Java annotations specifying ownership are \emph{relative} -- the
+annotation does not refer to a fixed object. To understand which
+object is actually the owner, one must know the annotation and the
+place of code where the annotated reference is declared.
 
 Let us consider an example. The class \texttt{IntList} is meant to
 implement a simple singly-linked list of integers, with the integer
@@ -2281,6 +2293,13 @@ implicitly annotated, the error message printed by JimuvaChecker will
 contain a relevant note, so that the user is not confused that the
 checker verifies an annotation which is not present in their code.
 
+We also have to protect immutable classes from being illegally
+subclassed: 
+\begin{verrule}
+  The \texttt{@ImmutableClass} annotation is inherited, i.e. each
+  (checked) subclass of an immutable class is also immutable. 
+\end{verrule}
+
 Let us complete the set of rules with a self-explanatory rule which
 applies to checked code:
 \begin{verrule}[Immutable class instancing]
@@ -2367,7 +2386,7 @@ concept of ownership would play an important role here, as it would
 help define what it means that method arguments are the same by
 introducing the deep state of objects. 
 
-The only approach to verifying the deterministism of Java methods we
+The only approach to verifying the determinism of Java methods we
 are aware of has been created within Joe-E \cite{deterministic}. Joe-E
 itself is a subset of Java which strictly adheres to the rules of the
 object-capability model described above. The verification of method
@@ -2388,11 +2407,12 @@ immutability, and at implementing relevant checkers. We will also
 reflect on how those approaches relate to our work.
 
 \section{Ownership type systems}
+\label{sec:rel:ownership}
 
 Ownership type systems have been a matter of interest for researchers
 for over a decade now. The main issue which has to be tackled has
 already been mentioned in this work: simultaneously maintaining
-sufficient expressiveness of the language and the neccessary
+sufficient expressiveness of the language and the necessary
 encapsulation of internal representation of objects. 
 
 \subsection{Boyapati et al.'s ownership types}
@@ -2452,12 +2472,14 @@ In Universes, a single ownership domain is bound to every object. This
 was considered to be an important limitation by Aldrich and
 Chambers~\cite{domains}, who developed an ownership type system used
 in the ArchJava system for enforcing the proper architectural
-structure for Java programs. The ownership type system allows the user
-to specify multiple ownership domains for one object. To overcome the
-restrictions imposed by encapsulation of representation, ownership
-domains can be \emph{linked} so that one can access the other across
-domain boundaries. Both Universes and ArchJava are expressive enough
-to allow implementing iterators and other important design patterns. 
+structure for Java programs~\cite{archjava}. The ownership type system
+allows the user to specify multiple ownership domains for one
+object. To overcome the restrictions imposed by encapsulation of
+representation, ownership domains can be \emph{linked} so that one can
+access the other across domain boundaries. 
+
+Both Universes and ArchJava are expressive enough to allow
+implementing iterators and other important design patterns.
 
 \section{Javari: reference immutability}
 
@@ -2484,7 +2506,7 @@ statically enforces the property that no object may be modified using
 a \texttt{readonly} reference.
 
 A complete implementation of the Javari checker has been developed
-using the Checkers Framework, with the additional keywords being
+using the Checker Framework, with the additional keywords being
 mapped to Java (JSR 308) annotations. The checker is currently shipped
 along with the framework.
 
@@ -2555,23 +2577,66 @@ user code against a set of rules. Even though the language discussed
 theoretically in IGJ and OIGJ papers relies on Java generics, the
 implementation maps the relevant generic type arguments into
 annotations. The implementations of both IGJ and OIGJ are based on the
-Checkers Framework and, like the Javari checker, they are shipped
-along with the framework.
+Checker Framework and, like the Javari checker, they are shipped along
+with the framework.
 
 \appendix
-
-\chapter{Error messages reference}
-\label{chap:appendix}
-
-The following list contains a reference for all error messages issued
-by JimuvaChecker, with an additional explanation if needed. 
-
 
 
 \chapter{CD contents}
 \label{chap:cd}
 
-\todo{CD contents}
+The CD attached to this document contains the following files: 
+\begin{itemize}
+\item \textbf{sr248277.pdf} -- this document in electronic format,
+\item \textbf{checker.tar.gz} -- the source code for the checker as
+  well as all libraries necessary to build and run the checker. The
+  archive unpacks to the \textbf{checker} directory. Within the
+  directory there are two subdirectories:
+  \begin{itemize}
+  \item \textbf{jsr308-langtools}, containing the Java compiler
+    modified for the JSR 308 extensions
+  \item \textbf{checkers}, containing the Checker Framework and the
+    checkers. The source code for our checker resides in
+    \begin{center}
+      \textbf{checkers/src/checkers/fun}
+    \end{center}
+    with the type qualifier definitions in the \textbf{quals}
+    directory and the checker itself in the \textbf{jimuva} directory.
+
+    Example source code for use with the checker is present in
+    \begin{center}
+      \textbf{checkers/examples/fun/examples}
+    \end{center}
+  \end{itemize}
+\end{itemize}
+
+\section{Compiling the checkers}
+\label{sec:compiling}
+
+In order to compile the Checker Framework and the checkers, one should
+issue the command
+
+\indent \textbf{\texttt{\$ ant bindist}}
+
+\noindent in the \textbf{checkers} directory. 
+
+\section{Running JimuvaChecker}
+
+The simplest way to run JimuvaChecker is to invoke the JSR 308-enabled
+compiler which is created during the previous step. In the
+\textbf{checkers} directory, issue the following command:
+
+\indent \textbf{\texttt{\$ ./javac -processor checkers.fun.jimuva.JimuvaChecker <file.java>}}
+
+\subsection{Runtime parameters}
+
+JimuvaChecker accepts an argument which specifies if upcasting mutable
+references to immutable ones is permitted. In order to permit
+upcasting, invoke the checker with the parameter
+\textbf{\texttt{-Aallow.upcast=true}} like so:
+
+\indent \textbf{\texttt{\small{\$ ./javac -processor checkers.fun.jimuva.JimuvaChecker -Aallow.upcast=true <file.java>}}}
 
 \addcontentsline{toc}{chapter}{References}
 \bibliography{biblio.bib}{}
