@@ -14,6 +14,7 @@ import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
 import java.util.HashMap;
 import java.util.Iterator;
+import java.util.LinkedList;
 import java.util.Map;
 import java.util.Stack;
 import javax.lang.model.element.AnnotationMirror;
@@ -46,7 +47,7 @@ public class JimuvaVisitorState {
     /* Block -- represents the  */
     protected static class Block {
 
-        private static Map<String, AnnotatedTypeMirror> vars;
+        private Map<String, AnnotatedTypeMirror> vars;
 
         public Block() {
             vars = new HashMap<String, AnnotatedTypeMirror>();
@@ -59,10 +60,9 @@ public class JimuvaVisitorState {
         public void add(String s, AnnotatedTypeMirror m) {
             vars.put(s, m);
         }
-
     }
 
-    protected Stack<Block> blocks;
+    protected LinkedList<Block> blocks;
 
     /* Set of possible aliases of this in the current method. */
     /*
@@ -89,7 +89,7 @@ public class JimuvaVisitorState {
         enclosingClassStack = new Stack<AnnotatedDeclaredType>();
         enclosingMethodStack = new Stack<AnnotatedExecutableType>();
         enclosingMethodsFlow = new Stack<MethodTree>();
-        blocks = new Stack<Block>();
+        blocks = new LinkedList<Block>();
     }
 
     public void setFactory(JimuvaAnnotatedTypeFactory factory) {
@@ -246,7 +246,7 @@ public class JimuvaVisitorState {
     }
 
     public void addVariable(String s, AnnotatedTypeMirror m) {
-        blocks.firstElement().add(s, m);
+        blocks.peek().add(s, m);
     }
 
     public void shadowVariable(String s) {
@@ -254,8 +254,8 @@ public class JimuvaVisitorState {
          * If a variable is shadowed by a field, we put a dummy entry
          * into the first block's vars which acts as if the variable did not exist.
          */
-        if (!blocks.empty()) {
-            blocks.firstElement().add(s, null);
+        if (!blocks.isEmpty()) {
+            blocks.peek().add(s, null);
         }
     }
 

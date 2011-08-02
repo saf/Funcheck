@@ -160,7 +160,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             }
 
             /* Resolve @Peer to the owner of expElem */
-            if (elemType.hasAnnotation(checker.PEER)) {
+            if (elemType.hasAnnotation(checker.PEER) && !expElemType.hasAnnotation(checker.THIS)) {
                 if (expElemType.hasAnnotation(checker.REP)) {
                     type.removeAnnotation(checker.PEER);
                     type.addAnnotation(checker.REP);

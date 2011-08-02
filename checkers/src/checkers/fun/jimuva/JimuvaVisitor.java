@@ -450,10 +450,10 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             /* Do not pass this to foreign constructors. */
             checkArgumentsAnonymous(node.getArguments());
         }
-        AnnotatedExecutableType con = atypeFactory.getAnnotatedType(TreeUtils.elementFromUse(node));
-        checkArgumentsEncap(node.getArguments(), con.getParameterTypes(), null);
-        checkNewReferenceType(node.getIdentifier());
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node.getIdentifier());
+        AnnotatedExecutableType con = atypeFactory.getAnnotatedType(TreeUtils.elementFromUse(node));
+        checkArgumentsEncap(node.getArguments(), con.getParameterTypes(), type);
+        checkNewReferenceType(node.getIdentifier());
         AnnotatedExecutableType constructor = atypeFactory.constructorFromUse(node);
         if (type.hasAnnotation(checker.IMMUTABLE)
                 && constructor.getAnnotation(Anonymous.class) == null) {
