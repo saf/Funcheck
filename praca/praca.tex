@@ -39,7 +39,7 @@
   D.2.4. Software/Program Verification
 }
 
-\keywords{Java, immutability, ownership, verification, Jimuva}
+\keywords{Java, immutability, ownership, verification, static analysis, Jimuva}
 
 \theoremstyle{break}
 \theorembodyfont{\rm}
@@ -2016,6 +2016,9 @@ regards to the deep state of objects.
     \texttt{@Rep}. Foreign objects are objects which are not marked
     with the \texttt{@NotThis} annotation by the data-flow analysis
     described in Section~\ref{sec:chk:anon}
+  \item $v$ cannot be passed as a non-immutable and non-safe parameter
+    to constructors, unless the constructor creates an object whose
+    ownership specification is \texttt{@Rep}.
   \item $v$ cannot be declared \texttt{public}. 
   \end{enumerate}
   Moreover, if $w$ is an object with a \texttt{@Rep}-annotated member
@@ -2025,11 +2028,14 @@ regards to the deep state of objects.
     expression \texttt{w.v} is erroneous, even if Java visibility
     mechanism would permit such access.
   \end{enumerate}
-  If $v$ is annotated with \texttt{@Peer},
+  If $v$ is annotated with \texttt{@Peer}:
   \begin{enumerate}[label=(\arabic*), resume]
   \item $v$ cannot be passed as a non-immutable and non-safe parameter
     to methods of foreign objects which are not annotated with
-    \texttt{@Rep} or \texttt{@Peer}
+    \texttt{@Rep} or \texttt{@Peer}.
+  \item $v$ cannot be passed as a non-immutable and non-safe parameter
+    to constructors, unless the constructor creates an object whose
+    ownership specification is \texttt{@Rep} or \texttt{@Peer}.
   \end{enumerate}
 \end{verrule}
 
@@ -2039,7 +2045,7 @@ with Jimuva (cf. the Sub Share subtyping rule of the type system on
 page 12 of~\cite{haack}) and other ownership systems described in
 Section~\ref{sec:rel:ownership}. Naturally, this does not violate
 immutability invariants as the passed references cannot be used to
-modify the representation.
+modify the representation. 
 
 \begin{verrule}[Deep state immutability] \label{vrl:deepimm}
   If $w$ is an immutable object holding a \texttt{@Rep}-annotated
@@ -2390,16 +2396,19 @@ JimuvaChecker is a complete tool for verifying object immutability, as
 well as class immutability in an open world. As a compiler plug-in,
 the checker is easy to use and may be smoothly integrated into the
 normal development process of any Java system. It can help avoid and
-fight common errors related to object immutability. 
+fight common errors related to object immutability. On the other hand,
+the type system used by JimuvaChecker is elastic enough to allow for
+implementing design patterns such as iterators: the source code for
+the checker is accompanied by a relevant example. 
 
 We do not aim to provide in this paper a complete, formal proof that
 every program which type-checks properly using JimuvaChecker is
 correct with regards to the immutability and representation
 encapsulation invariants, as specified on pages \pageref{inv:open} and
-\pageref{inv:encap} respectively. The correctness property may be
+\pageref{inv:encap} respectively. The type system's soundness may be
 derived by analogy from the correctness of the Jimuva type system, at
 least in the fragment of the Jimuva language which were modelled in
-JimuvaChecker in a direct way. 
+JimuvaChecker in a direct way.
 
 There are constructs for which the mapping of Jimuva into Java is not
 so straightforward -- for example owner-polymorphic methods, which are

@@ -261,8 +261,13 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 //        System.err.println("INVOCATION: " + node.toString());
         AnnotatedTypeMirror receiver = atypeFactory.getReceiver(node);
         AnnotatedTypeMirror calledMethodReceiver = calledMethod.getReceiverType();
-
-//        System.err.println(receiver.toString() + " ...---> " + calledMethod.toString());
+        ExpressionTree methodSelect = node.getMethodSelect();
+        String methodName;
+        if (methodSelect.getKind() == Tree.Kind.MEMBER_SELECT) {
+            methodName = ((MemberSelectTree) methodSelect).getIdentifier().toString();
+        } else {
+            methodName = node.toString();
+        }
 
         /*
          * When inside a @ReadOnly method, we cannot modify @Myaccess objects, as the access 
@@ -271,13 +276,13 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         if (state.isCurrentMethod(checker.READONLY) && receiver != null
             && !calledMethod.hasAnnotation(checker.READONLY)) {
             if (receiver.hasAnnotation(checker.MYACCESS)) {
-            checker.report(Result.failure("nonreadonly.call.on.myaccess.in.readonly",
-                    calledMethod.getElement().getSimpleName().toString(),
-                    calledMethodReceiver.getElement().getSimpleName().toString()), node);
+                checker.report(Result.failure("nonreadonly.call.on.myaccess.in.readonly",
+                    methodName,
+                    receiver.getElement().getSimpleName().toString()), node);
             } else if (receiver.hasAnnotation(checker.REP)) {
                 checker.report(Result.failure("nonreadonly.call.on.rep",
-                    calledMethod.getElement().getSimpleName().toString(),
-                    calledMethodReceiver.getElement().getSimpleName().toString()), node);
+                    methodName,
+                    receiver.getElement().getSimpleName().toString()), node);
             }
         }
 
@@ -504,8 +509,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         } else if (treeReceiver.hasAnnotation(checker.IMMUTABLE)
                 && !mcp.hasAnnotation(checker.READONLY)) {
             /* Disallow non-@Readonly calls on @Immutable */
-            checker.report(Result.failure("immutable.calls.nonreadonly", mcp.getElement().toString(),
-                    treeReceiver.toString()), node);
+            checker.report(Result.failure("immutable.calls.nonreadonly", mcp.getElement().toString()), node);
             if ((treeReceiver.hasAnnotation(checker.PEER) || treeReceiver.hasAnnotation(checker.OWNEDBY))
                     && state.isCurrentMethod(checker.READONLY)) {
                 checker.note(null, "immutable.implicit.on.encap.in.readonly");

@@ -33,5 +33,4 @@ public class OwnerPolymorphism {
         c.concat(s2, s3);
         c.safeConcat(s1, s3); /* OK */
     }
-
 }
