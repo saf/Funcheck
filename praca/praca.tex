@@ -2178,7 +2178,7 @@ interact, namely on:
 \begin{itemize}
 \item member access, i.e. expressions such as \texttt{x.y},
 \item returning a value from a method, 
-\item passing parameters to a method. 
+\item passing parameters to a method or constructor.
 \end{itemize}
 Of course, the subtyping rule (Rule 0) acts upon the modified
 (resolved) ownership specifications.
@@ -2221,7 +2221,7 @@ method is invoked. The expected argument type is changed depending on
 the ownership specifications of the formal parameter of the method,
 and of the object on which the method is invoked.
 
-\begin{verrule}[Resolving ownership: argument passing]
+\begin{verrule}[Resolving ownership: passing arguments to methods]
   If $x$ is a reference, or a chain of identifiers evaluating to a
   reference, with an ownership specification $T$, and $x$ has an
   instance method \texttt{m}, then for each formal parameter $p$ of
@@ -2233,6 +2233,25 @@ and of the object on which the method is invoked.
   \item if $p$ is annotated with \texttt{@Peer}, $T_p = T$;
   \item if $p$ is annotated with \texttt{@OwnedBy(''z'')}, $T_p$ is
     \texttt{@OwnedBy(''x.z'')}.
+  \end{enumerate}
+\end{verrule}
+
+Since the ``receiver'' of a constructor does not exist before the
+constructor is called, it makes no sense to annotate constructor
+arguments with \texttt{@Rep}. Also, \texttt{@OwnedBy} specifications
+may only refer to outside objects and not the constructed object's
+fields. Therefore, the ownership resolving rule for constructors is
+simpler:
+
+\begin{verrule}[Resolving ownership: passing arguments to constructors]
+  Whenever a constructor is called to create an object with an
+  ownership specification $T$, for each formal parameter $p$ of the
+  constructor, the actual parameter passed into the constructor is
+  expected to have an ownership specification $T_p$ as follows:
+  \begin{enumerate}[label=(\arabic*)]
+  \item if $p$ is annotated with \texttt{@Peer}, $T_p = T$;
+  \item if $p$ is annotated with \texttt{@OwnedBy(''z'')}, $T_p$ is
+    unchanged.
   \end{enumerate}
 \end{verrule}
 
