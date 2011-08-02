@@ -2007,12 +2007,12 @@ internal state encapsulation and the immutability property with
 regards to the deep state of objects.
 
 \begin{verrule}[Encapsulation of representation]
-  If $v$ is a value annotated with \texttt{@Rep} and not annotated
-  with \texttt{@Immutable}:
+  If $v$ is a value annotated with \texttt{@Rep}:
   \begin{enumerate}[label=(\arabic*)]
-  \item $v$ cannot be returned from methods. 
-  \item $v$ cannot be passed as a non-safe parameter to methods of
-    foreign objects which are not annotated with
+  \item a non-immutable reference to $v$ cannot be returned from
+    methods.
+  \item $v$ cannot be passed as a non-immutable and non-safe parameter
+    to methods of foreign objects which are not annotated with
     \texttt{@Rep}. Foreign objects are objects which are not marked
     with the \texttt{@NotThis} annotation by the data-flow analysis
     described in Section~\ref{sec:chk:anon}
@@ -2025,12 +2025,11 @@ regards to the deep state of objects.
     expression \texttt{w.v} is erroneous, even if Java visibility
     mechanism would permit such access.
   \end{enumerate}
-  If $v$ is annotated with \texttt{@Peer} and not annotated with
-  \texttt{@Immutable},
+  If $v$ is annotated with \texttt{@Peer},
   \begin{enumerate}[label=(\arabic*), resume]
-  \item $v$ cannot be passed as a non-safe parameter to methods of
-    foreign objects which are not annotated with \texttt{@Rep} or
-    \texttt{@Peer}.
+  \item $v$ cannot be passed as a non-immutable and non-safe parameter
+    to methods of foreign objects which are not annotated with
+    \texttt{@Rep} or \texttt{@Peer}
   \end{enumerate}
 \end{verrule}
 

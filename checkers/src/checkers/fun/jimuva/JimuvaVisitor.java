@@ -379,7 +379,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             checker.report(Result.failure("anonymous.returns.this"), node);
         }
 
-        /* Prohibit returning a @Rep object. */
+        /* Prohibit returning a read-write reference to a @Rep object. */
         AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node.getExpression());
         if (type.hasAnnotation(checker.REP)
                 && !type.hasAnnotation(checker.IMMUTABLE)) {
@@ -664,20 +664,20 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         Iterator<? extends ExpressionTree> ait = args.iterator();
         Iterator<AnnotatedTypeMirror> pit = params.iterator();
 
-        Boolean safe = false;
+        AnnotatedTypeMirror paramType = null;
         while (ait.hasNext()) {
-            safe = pit.hasNext() ? pit.next().hasAnnotation(checker.SAFE) : safe; /* VarArgs possible */
+            paramType = pit.hasNext() ? pit.next() : paramType; /* Handling varArgs */
             ExpressionTree a = ait.next();
             AnnotatedTypeMirror at = atypeFactory.getAnnotatedType(a);
             if ((receiver == null || !receiver.hasAnnotation(checker.REP))
                     && at.hasAnnotation(checker.REP)
-                    && !at.hasAnnotation(checker.IMMUTABLE)
-                    && !safe) {
+                    && !paramType.hasAnnotation(checker.IMMUTABLE)
+                    && !paramType.hasAnnotation(checker.SAFE)) {
                 checker.report(Result.failure("passing.rep.to.foreign.method", a.toString()), a);
             } else if ((receiver == null || (!receiver.hasAnnotation(checker.PEER) && !receiver.hasAnnotation(checker.REP)))
                     && at.hasAnnotation(checker.PEER)
-                    && !at.hasAnnotation(checker.IMMUTABLE)
-                    && !safe) {
+                    && !paramType.hasAnnotation(checker.IMMUTABLE)
+                    && !paramType.hasAnnotation(checker.SAFE)) {
                 checker.report(Result.failure("passing.peer.to.foreign.method", a.toString()), a);
             }
         }
