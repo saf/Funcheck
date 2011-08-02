@@ -116,7 +116,7 @@ public class JimuvaVisitorState {
     }
 
     public Boolean isCurrentClass(AnnotationMirror ann) {
-        return currentClass.hasAnnotation(ann);
+        return currentClass != null && currentClass.hasAnnotation(ann);
     }
    
     public String getCurrentClassName() {
@@ -145,7 +145,11 @@ public class JimuvaVisitorState {
     }
 
     public Boolean isCurrentMethod(AnnotationMirror ann) {
-        return currentMethod.hasAnnotation(ann);
+        /*
+         * currentMethod may be null when doing Flow analysis, but
+         * the result of this method is meaningless for flow-inferred properties.
+         */
+        return currentMethod != null && currentMethod.hasAnnotation(ann);
     }
 
     public Boolean isCurrentMethodReceiver(AnnotationMirror ann) {

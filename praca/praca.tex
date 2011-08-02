@@ -617,8 +617,8 @@ on by preceding its declaration with the \texttt{@ReadOnly} annotation:
   return x; 
 }
 \end{lstlisting}
-This annotation is equivalent (and internally translated by
-JimuvaChecker) to annotating the receiver type of the method with
+Enforcing the read-only property of a method includes, but is not
+limited to, implicitly annotating its receiver with
 \texttt{@Immutable}.
 
 \subsubsection{Anonymous constructors}
@@ -1628,17 +1628,59 @@ permitted.
 
 \subsubsection{Enforcing \texttt{@ReadOnly} on methods} 
 
-\texttt{@ReadOnly} methods must prevent the modification of their
-receiver. 
+There are two aspects of enforcing the read-only property for methods.
+Firstly, \texttt{@ReadOnly} methods must prevent the modification of
+their receiver.
 
-\begin{verrule}[\texttt{@ReadOnly} methods] \label{vrl:readonly}
+\begin{verrule}[Read-only method receivers] \label{vrl:readonly:rec}
   The receiver of a \texttt{@ReadOnly} method is implicitly marked
   with \texttt{@Immutable}. As an exception to Rule 0, access rights
   upcasting is allowed in this case, regardless of the
   \texttt{allow.upcast} option, so that \texttt{@ReadOnly} methods may
   be invoked on \texttt{@Mutable} objects.
 \end{verrule}
-\vspace{-0.7cm}
+
+Secondly, we must guard all values which are a part of an object's
+internal representation from being modified inside a read-only
+method. This is to avoid a situation where the state of an object
+would be indirectly affected by a~call to a~read-only method
+on~another object. Consider this example:
+
+\begin{lstlisting}
+  public class A {
+    @Peer C value;
+    @ReadOnly void foo() {
+      value.modify(); 
+    }
+  }
+
+  public class B {
+    @Rep A a;
+    @ReadOnly bar() {
+      a.foo();
+    }
+  }
+\end{lstlisting}
+
+The method \texttt{bar()} should be considered correct as it calls a
+read-only method. However, if it were not for the rule below, the
+state of an object of class \texttt{B} could be indirectly modified 
+by the method invocation \texttt{a.foo()}. 
+
+\begin{verrule}[Indirect read-only
+  protection] \label{vrl:readonly:meth} Encapsulated objects,
+  i.e. those annotated with \texttt{@Peer} and \texttt{@OwnedBy}, are
+  implicitly annotated with \texttt{@Immutable} inside read-only
+  methods.
+\end{verrule}
+
+The above rule is an implementation of the read-only restriction of
+Jimuva (\cite{haack}, page 10), albeit in an~ eased form. We do not
+forbid all field assignments, as mutable objects owned by \emph{world}
+may be modified without harm. Effectively, we enforce the same
+restriction on method invocations: only read-only methods may be
+called on an object, unless it is owned by \emph{world}, in which case
+there are no restrictions on method invocations.
 
 \subsubsection{Guarding shallow state immutability} 
 
@@ -2014,7 +2056,7 @@ modify the representation.
 \end{verrule}
 Note that Rule \ref{vrl:deepimm} also applies to the receivers of
 read-only methods, which are implicitly immutable by
-Rule~\ref{vrl:readonly}. 
+Rule~\ref{vrl:readonly:rec}. 
 
 In point \ref{pnt:deep-array} of the rule, if the fields of the
 array $v$ are arrays declared as members of $w$'s state with the

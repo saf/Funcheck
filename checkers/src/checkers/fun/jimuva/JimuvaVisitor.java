@@ -107,6 +107,14 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 } else {
                     checker.report(Result.failure("assign.immutable.field",
                             varTree.toString(), receiver.getElement().toString()), node);
+                    if ((receiver.hasAnnotation(checker.PEER) || receiver.hasAnnotation(checker.OWNEDBY))
+                            && state.isCurrentMethod(checker.READONLY)) {
+                        checker.note(null, "immutable.implicit.on.encap.in.readonly");
+                        if (state.inImplicitlyAnnotatedMethod()) {
+                            checker.note(null, "readonly.implicit",
+                                state.getCurrentMethodName(), state.getCurrentClassName());
+                        }
+                    }
                 }
             }
         }
@@ -260,8 +268,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
          * When inside a @ReadOnly method, we cannot modify @Myaccess objects, as the access 
          * rights variable could be instantiated to @Immutable.
          */
-        if (state.isCurrentMethodReceiver(checker.IMMUTABLE) && receiver != null
-            && calledMethodReceiver != null && !calledMethodReceiver.hasAnnotation(checker.IMMUTABLE)) {
+        if (state.isCurrentMethod(checker.READONLY) && receiver != null
+            && !calledMethod.hasAnnotation(checker.READONLY)) {
             if (receiver.hasAnnotation(checker.MYACCESS)) {
             checker.report(Result.failure("nonreadonly.call.on.myaccess.in.readonly",
                     calledMethod.getElement().getSimpleName().toString(),
@@ -284,7 +292,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         }
 
         if ((!TreeUtils.isSelfAccess(node) && (receiver != null && !receiver.hasAnnotation(checker.THIS)))) {
-            /* Check that @Rep objects are not passed to foreign methods */
+            /* Check that encapsulated objects are not passed to foreign methods */
             checkArgumentsEncap(node.getArguments(), calledMethod.getParameterTypes(), receiver);
         }
 
@@ -487,15 +495,19 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
         treeReceiver.addAnnotations(atypeFactory.getReceiver(node).getAnnotations());
 
         if (treeReceiver.hasAnnotation(checker.MUTABLE)
-                && methodReceiver.hasAnnotation(checker.IMMUTABLE)) {
+                && mcp.hasAnnotation(checker.READONLY)) {
             /* Allow for @ReadOnly calls on @Mutable references. */
             mcp.getReceiverType().removeAnnotation(checker.IMMUTABLE);
             mcp.getReceiverType().addAnnotation(checker.MUTABLE);
         } else if (treeReceiver.hasAnnotation(checker.IMMUTABLE)
-                && methodReceiver.hasAnnotation(checker.MUTABLE)) {
+                && !mcp.hasAnnotation(checker.READONLY)) {
             /* Disallow non-@Readonly calls on @Immutable */
             checker.report(Result.failure("immutable.calls.nonreadonly", mcp.getElement().toString(),
                     treeReceiver.toString()), node);
+            if ((treeReceiver.hasAnnotation(checker.PEER) || treeReceiver.hasAnnotation(checker.OWNEDBY))
+                    && state.isCurrentMethod(checker.READONLY)) {
+                checker.note(null, "immutable.implicit.on.encap.in.readonly");
+            }
         }
         return super.checkMethodInvocability(mcp, node);
     }

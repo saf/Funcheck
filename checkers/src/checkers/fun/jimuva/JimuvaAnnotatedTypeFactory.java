@@ -196,6 +196,13 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             type.addAnnotation(checker.WORLD);
         }
 
+        /* Implicit protection of encapsulated values inside read-only methods (Rule 2) */
+        if (state.isCurrentMethod(checker.READONLY)
+                && (type.hasAnnotation(checker.PEER) || type.hasAnnotation(checker.OWNEDBY))
+                && !type.hasAnnotation(checker.IMMUTABLE)) {
+            type.addAnnotation(checker.IMMUTABLE);
+        }
+
         return type;
     }
 
@@ -246,6 +253,13 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
             } catch (JimuvaVisitor.Owner.OwnerDescriptionError err) {
                 /* Swallow the exception, it should have already been reported */
             }
+        }
+
+        /* Implicit protection of encapsulated values inside read-only methods (Rule 2) */
+        if (state.isCurrentMethod(checker.READONLY)
+                && (type.hasAnnotation(checker.PEER) || type.hasAnnotation(checker.OWNEDBY))
+                && !type.hasAnnotation(checker.IMMUTABLE)) {
+            type.addAnnotation(checker.IMMUTABLE);
         }
 
         return type;
