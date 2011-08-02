@@ -1,19 +1,12 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package checkers.fun.examples;
 
-import checkers.fun.quals.Immutable;
-import checkers.fun.quals.OwnedBy;
-import checkers.fun.quals.Peer;
-import checkers.fun.quals.ReadOnly;
-import checkers.fun.quals.Rep;
+import checkers.fun.quals.*;
 
 /**
  * Type-checked implementation for iterators over a stack whose nodes
  * are encapsulated inside the stack.
+ *
+ * NOTE: this needs to be compiled with the -Aallow.upcast=true switch
  *
  * @author saf
  */
