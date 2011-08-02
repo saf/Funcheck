@@ -2052,11 +2052,13 @@ modify the representation.
   reference to $v$, then:
   \begin{enumerate}[label=(\arabic*)]
   \item no non-read-only method can be called on $v$, 
+  \item $v$ may not be passed as a non-immutable argument to a method
+    or constructor.
   \item no field of $v$ can be reassigned, i.e. any assignment of the
     form \texttt{v.f~=~x}, is illegal.
   \item \label{pnt:deep-array} if $v$ is an array, no field of $v$ can
     be reassigned, i.e. any assignment of the form \texttt{v[i]~=~x},
-    is illegal.
+    is illegal, 
   \end{enumerate}
 \end{verrule}
 Note that Rule \ref{vrl:deepimm} also applies to the receivers of

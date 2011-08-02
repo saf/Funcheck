@@ -374,6 +374,25 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             }
             refinedRequiredArgs.add(refined);
         }
+
+
+        /* Check that, inside a read-only method, no @Rep value is passed
+         * as a non-immutable parameter to a method or constructor */
+        Iterator<? extends ExpressionTree> ait = passedArgs.iterator();
+        Iterator<AnnotatedTypeMirror> pit = refinedRequiredArgs.iterator();
+        AnnotatedTypeMirror paramType = null;
+        while (ait.hasNext()) {
+            paramType = pit.hasNext() ? pit.next() : paramType; /* Handling varArgs */
+            ExpressionTree a = ait.next();
+            AnnotatedTypeMirror at = atypeFactory.getAnnotatedType(a);
+
+            if (state.isCurrentMethod(checker.READONLY)
+                && at.hasAnnotation(checker.REP)
+                && !paramType.hasAnnotation(checker.IMMUTABLE)) {
+                checker.report(Result.failure("passing.rep.in.readonly", a.toString()), a);
+            }
+        }
+
         super.checkArguments(refinedRequiredArgs, passedArgs, p);
     }
 
@@ -664,6 +683,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
      * are @Rep or @Peer.
      *
      * @param args The list of arguments to be checked.
+     * @param params The list of
+     * @param receiver The type of the method's receiver.
      */
     protected void checkArgumentsEncap(List<? extends ExpressionTree> args,
             List<AnnotatedTypeMirror> params, AnnotatedTypeMirror receiver) {
