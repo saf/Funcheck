@@ -333,7 +333,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             }
 
             /* Resolve @Peer annotations on arguments relative to the receiver */
-            if (refined.hasAnnotation(checker.REP)) {
+            if (invocation != null && refined.hasAnnotation(checker.REP)) {
                 if (!TreeUtils.isSelfAccess(invocation)) {
                     MemberSelectTree methodSelect = (MemberSelectTree) invocation.getMethodSelect();
                     refined.removeAnnotation(checker.REP);
@@ -358,7 +358,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                     refined.removeAnnotation(checker.PEER);
                     refined.addAnnotation(checker.WORLD);
                 }
-            } else if (refined.hasAnnotation(checker.OWNEDBY)
+            } else if (invocation != null && refined.hasAnnotation(checker.OWNEDBY)
                     && !TreeUtils.isSelfAccess(invocation)) {
                 Owner desiredOwner = new Owner(refined.getElement(), atypeFactory);
                 MemberSelectTree recvSelect = (MemberSelectTree) invocation.getMethodSelect();
@@ -450,7 +450,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             /* Do not pass this to foreign constructors. */
             checkArgumentsAnonymous(node.getArguments());
         }
-        AnnotatedTypeMirror type = atypeFactory.getAnnotatedType(node.getIdentifier());
+        AnnotatedTypeMirror type = atypeFactory.fromTypeTree(node.getIdentifier());
         AnnotatedExecutableType con = atypeFactory.getAnnotatedType(TreeUtils.elementFromUse(node));
         checkArgumentsEncap(node.getArguments(), con.getParameterTypes(), type);
         checkNewReferenceType(node.getIdentifier());
@@ -459,6 +459,8 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
                 && constructor.getAnnotation(Anonymous.class) == null) {
             checker.report(Result.warning("immutable.untrusted.constructor"), node);
         }
+
+        state.setCurrentInvocation(node);
         return super.visitNewClass(node, p);
     }
 

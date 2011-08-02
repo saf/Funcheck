@@ -12,6 +12,8 @@ import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
+import com.sun.source.tree.NewClassTree;
+import com.sun.source.tree.Tree;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -194,9 +196,17 @@ public class JimuvaVisitorState {
                 : (currentMethodFlow.getReturnType() == null);
     }
 
-    public void setCurrentInvocation(MethodInvocationTree t) {
-        currentInvocation = t;
-        invocationReceiver = atypeFactory.getReceiver(t);
+    public void setCurrentInvocation(Tree t) {
+        if (t.getKind() == Tree.Kind.METHOD_INVOCATION) {
+            MethodInvocationTree mt = (MethodInvocationTree) t;
+            currentInvocation = mt;
+            invocationReceiver = atypeFactory.getReceiver(mt);
+        } else if (t.getKind() == Tree.Kind.NEW_CLASS) {
+            NewClassTree nt = (NewClassTree) t;
+            currentInvocation = null;
+            invocationReceiver = atypeFactory.fromTypeTree(nt.getIdentifier());
+        }
+
         if (invocationReceiver != null) {
             try {
                 invocationReceiverOwner =
