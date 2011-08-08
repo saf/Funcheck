@@ -97,3 +97,12 @@
 *** Refining method parameters
 
     
+
+* Poprawki
+
+** DONE Obejrzeć semantykę LOOP do Javy
+** DONE Bibliografia
+** DONE O semantyce i systemie typów dla Jimuvy
+** DONE zmiana nazwy
+*** TODO refaktoring nazw pakietów i klas. 
+** DONE listingi
