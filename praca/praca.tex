@@ -1588,8 +1588,8 @@ The general structure of JimmuChecker matches that of the majority of
 annotation processors based on the Checker Framework. The two
 functionalities mentioned above: pro\-vi\-ding syntactic elements with
 annotated types and the actual verification, are delegated to two
-classes: \texttt{JimuvaAnnotatedTypeFactory} and
-\texttt{JimuvaVisitor}, respectively. Figure \ref{fig:classes}
+classes: \texttt{JimmuAnnotatedTypeFactory} and
+\texttt{JimmuVisitor}, respectively. Figure \ref{fig:classes}
 contains the UML class diagram for the project.
 
 \newcommand{\cln}[1]{\textbf{\small{#1}}}
@@ -1604,25 +1604,25 @@ contains the UML class diagram for the project.
       AnnotatedTypeFactory createFactory(CompilationUnitTree) \newline 
       BaseTypeVisitor createSourceVisitor(CompilationUnitTree)
     };
-    \node (factory) [cl, text width=9cm] at (9, 4) { \cln{JimuvaAnnotatedTypeFactory} 
+    \node (factory) [cl, text width=9cm] at (9, 4) { \cln{JimmuAnnotatedTypeFactory} 
       extends AnnotatedTypeFactory
       \nodepart{second} 
       AnnotatedTypeMirror getAnnotatedType(Tree t) \newline
       AnnotatedTypeMirror getAnnotatedType(Element e) \newline
       void annotateImplicit(Tree tr, AnnotatedTypeMirror ty)
     };
-    \node (visitor) [cl, text width=6.5cm] at (0, 4) { \cln{JimuvaVisitor} extends BaseTypeVisitor
+    \node (visitor) [cl, text width=6.5cm] at (0, 4) { \cln{JimmuVisitor} extends BaseTypeVisitor
       \nodepart{second}
       Void visitAssignment(AssignmentNode t) \newline
       Void visitMethodInvocation(MethodInvocationTree t)
     };
-    \node (state) [cl, text width=6cm, fill=orange!10] at (9, 0) { \cln{JimuvaVisitorState}
+    \node (state) [cl, text width=6cm, fill=orange!10] at (9, 0) { \cln{JimmuVisitorState}
       \nodepart{second} 
       void enterMethod(MethodTree t) \newline
       Boolean isCurrentMethod(AnnotatedTypeMirror m) \newline
       void leaveMethod()
     };
-    \node (flow) [cl, text width=6cm] at (0, 9.5) { \cln{JimuvaFlow} extends Flow
+    \node (flow) [cl, text width=6cm] at (0, 9.5) { \cln{JimmuFlow} extends Flow
       \nodepart{second}
       void scan(Tree t) \newline
       void merge(GenKillBits bits, GenKillBits other)
@@ -1633,7 +1633,7 @@ contains the UML class diagram for the project.
       Boolean isImmutable() \newline
       void append(Owner owner)
     };
-    \node (hierarchy) [cl, text width=10.5cm] at (7, 11) {\cln{JimuvaQualifierHierarchy} extends GraphQualifierHierarchy
+    \node (hierarchy) [cl, text width=10.5cm] at (7, 11) {\cln{JimmuQualifierHierarchy} extends GraphQualifierHierarchy
       \nodepart{second}
       boolean isSubtype(Collection<AnnotationMirror> rhs, Collection<AnnotationMirror> lhs)
     };
@@ -1658,16 +1658,16 @@ are as follows:
 \item \textbf{JimmuChecker}: wrapper class responsible for creating
   the working instances of other classes in the checker, handles the
   reporting of error messages.
-\item \textbf{JimuvaAnnotatedTypeFactory}: assigns annotated types to
+\item \textbf{JimmuAnnotatedTypeFactory}: assigns annotated types to
   objects in the analyzed program.
-\item \textbf{JimuvaVisitor}: using the Visitor pattern, inspects the
+\item \textbf{JimmuVisitor}: using the Visitor pattern, inspects the
   abstract syntax tree of~the~program, checking that they conform to
   the rules described in the following section. 
-\item \textbf{JimuvaVisitorState}: during the AST traversal, the
+\item \textbf{JimmuVisitorState}: during the AST traversal, the
   visitor needs additional information such as the annotated type for
   the current method or class. This information is~stored in an
-  instance of JimuvaVisitorState. 
-\item \textbf{JimuvaFlow}: performs \emph{data-flow analysis} on the
+  instance of JimmuVisitorState. 
+\item \textbf{JimmuFlow}: performs \emph{data-flow analysis} on the
   given code in order to infer annotations which help track references
   to \texttt{this} inside methods and constructors. Those annotations
   do not interfere with those provided by users as they are used by
@@ -1678,7 +1678,7 @@ are as follows:
   textual descriptions of object owners. Each object annotated with
   \texttt{@OwnedBy} has a matching instance of Owner which defines its
   owner object.
-\item \textbf{JimuvaQualifierHierarchy}: responsible for resolving
+\item \textbf{JimmuQualifierHierarchy}: responsible for resolving
   subtyping between annotated types. This class overrides the standard
   subtyping from JimmuChecker; more information on that is provided
   in Section \ref{sec:chk:hierarchy}. 
@@ -1771,7 +1771,7 @@ subtype \texttt{@Mutable @Safe String}, leading to an obvious
 violation in immutability when an \texttt{@Immutable} object gets
 assigned to~a~\texttt{@Mutable} reference.
 
-The class JimuvaQualifierHierarchy is responsible for introducing
+The class JimmuQualifierHierarchy is responsible for introducing
 another mechanism of~subtyping. For each annotation $a$ on $T$ there
 must be an annotation on $S$ which subtypes $a$. In other words, each
 annotation on the potential supertype is treated as a requirement
@@ -1998,12 +1998,12 @@ can be found in~\cite{dataflow}.
 
 In JimmuChecker, a simple inter-procedural data-flow analysis is
 performed prior to verification using an implementation supplied in
-the Checker Framework, with the class \texttt{JimuvaFlow} responsible
+the Checker Framework, with the class \texttt{JimmuFlow} responsible
 for the analysis. It aims to annotate expressions with one of three
 possible annotations: \texttt{@This}, \texttt{@MaybeThis} and
-\texttt{@NotThis}. The annotations are internal for JimmuChecker:
-they should not appear in user code, but may show up in error messages
-printed by~the~checker. 
+\texttt{@NotThis}. The annotations are internal for JimmuChecker: they
+should not appear in user code, but may show up in error messages
+printed by~the~checker.
 
 The analyzer stores a map from element (variable, parameter etc.)
 identifiers into the relevant annotation for each place in code.
@@ -2402,13 +2402,13 @@ $$ \mathtt{@OwnedBy("}\underbrace{\mathtt{list}}_{\mathclap{\textrm{base}}}
 \mathtt{.}
 \underbrace{\mathtt{next.next}}_{\mathclap{\textrm{member path}}}\mathtt{")} $$
 
-Objects of the class \texttt{JimuvaVisitor.Owner} represent the
+Objects of the class \texttt{JimmuVisitor.Owner} represent the
 owners. The class' constructors parse the arguments of
 \texttt{@OwnedBy} annotations and signal any errors found therein.
 
 The constructors first search the current scope for an element with
 a name equal to~the~base. To this end, the
-\texttt{JimuvaVisitorState} stores a stack representing blocks with
+\texttt{JimmuVisitorState} stores a stack representing blocks with
 declared variables. This stack, along with the methods and classes
 enclosing the place of code being inspected, is scanned for a
 matching element. If such an element is found, the algorithm proceeds
@@ -2964,14 +2964,14 @@ The CD attached to this document contains the following files:
   \item \textbf{checkers}, containing the Checker Framework and the
     checkers. The source code for our checker resides in
     \begin{center}
-      \textbf{checkers/src/checkers/fun}
+      \textbf{checkers/src/checkers/jimmu}
     \end{center}
     with the type qualifier definitions in~the~\textbf{quals}
-    directory and the checker itself in~the~\textbf{jimuva} directory.
+    subdirectory.
 
     Example source code for use with the checker is present in
     \begin{center}
-      \textbf{checkers/examples/fun/examples}
+      \textbf{checkers/examples/jimmu/examples}
     \end{center}
   \end{itemize}
 \end{itemize}
@@ -2992,7 +2992,7 @@ The simplest way to run JimmuChecker is to invoke the JSR 308-enabled
 compiler which is~created during the previous step. In the
 \textbf{checkers} directory, issue the following command:
 
-\indent \textbf{\texttt{\$ ./javac -processor checkers.fun.jimuva.JimmuChecker <file.java>}}
+\indent \textbf{\texttt{\$ ./javac -processor checkers.jimmu.JimmuChecker <file.java>}}
 
 \subsection{Runtime parameters}
 
@@ -3001,7 +3001,7 @@ references to immutable ones is permitted. In order to permit
 upcasting, invoke the checker with the parameter
 \textbf{\texttt{-Aallow.upcast=true}} like so:
 
-\indent \textbf{\texttt{\small{\$ ./javac -processor checkers.fun.jimuva.JimmuChecker -Aallow.upcast=true <file.java>}}}
+\indent \textbf{\texttt{\small{\$ ./javac -processor checkers.jimmu.JimmuChecker -Aallow.upcast=true <file.java>}}}
 
 \addcontentsline{toc}{chapter}{References}
 \bibliography{biblio.bib}{}
