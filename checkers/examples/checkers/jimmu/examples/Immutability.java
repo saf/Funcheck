@@ -1,9 +1,6 @@
-package checkers.fun.examples;
+package checkers.jimmu.examples;
 
-import checkers.fun.quals.Anonymous;
-import checkers.fun.quals.Immutable;
-import checkers.fun.quals.Mutable;
-import checkers.fun.quals.ReadOnly;
+import checkers.jimmu.quals.*;
 
 /**
  * Example on how the Jimuva checker handles simple immutability.

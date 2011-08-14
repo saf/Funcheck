@@ -1,6 +1,6 @@
-package checkers.fun.examples;
+package checkers.jimmu.examples;
 
-import checkers.fun.quals.*;
+import checkers.jimmu.quals.*;
 
 /**
  * Type-checked implementation for iterators over a stack whose nodes

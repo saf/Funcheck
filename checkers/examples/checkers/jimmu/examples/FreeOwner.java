@@ -3,12 +3,9 @@
  * and open the template in the editor.
  */
 
-package checkers.fun.examples;
+package checkers.jimmu.examples;
 
-import checkers.fun.quals.AnyOwner;
-import checkers.fun.quals.Immutable;
-import checkers.fun.quals.Myaccess;
-import checkers.fun.quals.OwnedBy;
+import checkers.jimmu.quals.*;
 
 /**
  *

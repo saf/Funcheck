@@ -3,10 +3,10 @@
  * and open the template in the editor.
  */
 
-package checkers.fun.examples;
+package checkers.jimmu.examples;
 
-import checkers.fun.quals.Rep;
-import checkers.fun.quals.Safe;
+import checkers.jimmu.quals.Rep;
+import checkers.jimmu.quals.Safe;
 
 /**
  * Example of a collection using @Rep and @Peer annotations. 
@@ -24,7 +24,7 @@ public class CollectionTest {
     }
 
     public static class Tester {
-        private @Rep checkers.fun.examples.PeerStack<String> stack;
+        private @Rep checkers.jimmu.examples.PeerStack<String> stack;
 
         public Tester() {
             stack = new /*@Rep*/ PeerStack<String>();

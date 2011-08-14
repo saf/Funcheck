@@ -3,9 +3,9 @@
  * and open the template in the editor.
  */
 
-package checkers.fun.examples;
+package checkers.jimmu.examples;
 
-import checkers.fun.quals.*;
+import checkers.jimmu.quals.*;
 
 /**
  * Example on immutability and @Rep of arrays.
