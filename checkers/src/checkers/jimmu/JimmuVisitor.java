@@ -47,16 +47,16 @@ import javax.lang.model.type.TypeMirror;
  *
  * @author saf
  */
-public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
+public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
 
-    protected JimuvaChecker checker;
-    protected JimuvaAnnotatedTypeFactory atypeFactory;
-    protected JimuvaVisitorState state;
+    protected JimmuChecker checker;
+    protected JimmuAnnotatedTypeFactory atypeFactory;
+    protected JimmuVisitorState state;
 
-    public JimuvaVisitor(JimuvaChecker checker, CompilationUnitTree root, JimuvaVisitorState state) throws IOException {
+    public JimmuVisitor(JimmuChecker checker, CompilationUnitTree root, JimmuVisitorState state) throws IOException {
         super(checker, root);
         this.checker = checker;
-        atypeFactory = new JimuvaAnnotatedTypeFactory(checker, root, state);
+        atypeFactory = new JimmuAnnotatedTypeFactory(checker, root, state);
         this.state = state;
     }
 
@@ -758,24 +758,24 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
         THIS_LITERAL {
 
-            public void print(JimuvaChecker ch) {
+            public void print(JimmuChecker ch) {
             }
         },
         ALIAS {
 
-            public void print(JimuvaChecker ch) {
+            public void print(JimmuChecker ch) {
                 ch.note(location, "this.ref.alias", aliasName);
             }
         },
         NONANONYMOUS_ON_THIS {
 
-            public void print(JimuvaChecker ch) {
+            public void print(JimmuChecker ch) {
                 ch.note(null, "this.ref.nonanonymous.on.this", methodName);
             }
         },
         NONANONYMOUS_ON_ALIAS {
 
-            public void print(JimuvaChecker ch) {
+            public void print(JimmuChecker ch) {
                 ch.note(null, "this.ref.nonanonymous.on.alias", methodName, aliasName);
                 innerReferenceSource.print(ch);
             }
@@ -801,7 +801,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             this.innerReferenceSource = innerReferenceSource;
         }
 
-        public abstract void print(JimuvaChecker ch);
+        public abstract void print(JimmuChecker ch);
     }
 
     protected Boolean mayBeThis(ExpressionTree node) {
@@ -824,7 +824,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
 
         Element element;
         List<PathStep> path;
-        JimuvaAnnotatedTypeFactory af;
+        JimmuAnnotatedTypeFactory af;
 
         public class OwnerDescriptionError extends RuntimeException {
 
@@ -860,7 +860,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
             }
         }
 
-        public Owner(Element elt, JimuvaAnnotatedTypeFactory af) throws OwnerDescriptionError {
+        public Owner(Element elt, JimmuAnnotatedTypeFactory af) throws OwnerDescriptionError {
             this.af = af;
             this.element = elt;
 
@@ -898,7 +898,7 @@ public class JimuvaVisitor extends BaseTypeVisitor<Void, Void> {
          * simple-formed MemberSelectTrees, which contain an IdentifierTree at the end
          * of the chain.
          */
-        public Owner(ExpressionTree tree, JimuvaAnnotatedTypeFactory af) {
+        public Owner(ExpressionTree tree, JimmuAnnotatedTypeFactory af) {
             this.af = af;
             path = new LinkedList<PathStep>();
 

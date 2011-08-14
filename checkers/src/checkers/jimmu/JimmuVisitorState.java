@@ -5,7 +5,7 @@
 
 package checkers.jimmu;
 
-import checkers.jimmu.JimuvaVisitor.Owner;
+import checkers.jimmu.JimmuVisitor.Owner;
 import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeMirror.*;
 import com.sun.source.tree.AssignmentTree;
@@ -29,9 +29,9 @@ import javax.lang.model.element.Name;
  *
  * @author saf
  */
-public class JimuvaVisitorState {
+public class JimmuVisitorState {
 
-    protected JimuvaAnnotatedTypeFactory atypeFactory;
+    protected JimmuAnnotatedTypeFactory atypeFactory;
 
     protected Stack<AnnotatedDeclaredType> enclosingClassStack;
     protected Stack<AnnotatedExecutableType> enclosingMethodStack;
@@ -75,17 +75,17 @@ public class JimuvaVisitorState {
     protected Map<Element, AssignmentTree> thisReferences;
 
     /* The type for the receiver of the current MethodInvocation.
-     * Needed to infer type of paramaters in JimuvaVisitor.
+     * Needed to infer type of paramaters in JimmuVisitor.
      */
     protected AnnotatedTypeMirror invocationReceiver;
     /* Owner of the current invocation receiver */
-    protected JimuvaVisitor.Owner invocationReceiverOwner;
+    protected JimmuVisitor.Owner invocationReceiverOwner;
     protected MethodInvocationTree currentInvocation;
 
     /* Map of implicit annotations that the Factory put on methods */
     protected Map<ExecutableElement, AnnotationMirror> implicitAnnotations;
 
-    public JimuvaVisitorState() {
+    public JimmuVisitorState() {
         thisReferences = new HashMap<Element, AssignmentTree>();
         implicitAnnotations = new HashMap<ExecutableElement, AnnotationMirror>();
         enclosingClassStack = new Stack<AnnotatedDeclaredType>();
@@ -94,7 +94,7 @@ public class JimuvaVisitorState {
         blocks = new LinkedList<Block>();
     }
 
-    public void setFactory(JimuvaAnnotatedTypeFactory factory) {
+    public void setFactory(JimmuAnnotatedTypeFactory factory) {
         this.atypeFactory = factory;
     }
 
@@ -210,7 +210,7 @@ public class JimuvaVisitorState {
         if (invocationReceiver != null) {
             try {
                 invocationReceiverOwner =
-                        new JimuvaVisitor.Owner(invocationReceiver.getElement(), atypeFactory);
+                        new JimmuVisitor.Owner(invocationReceiver.getElement(), atypeFactory);
             } catch (Owner.OwnerDescriptionError e) {
                 /* Ignore; should have already been reported */
                 invocationReceiverOwner = null;

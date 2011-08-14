@@ -39,13 +39,13 @@ import javax.lang.model.type.TypeKind;
 /**
  * Determines annotations based on rules governing Funcheck's annotations.
  */
-public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<JimuvaChecker> {
+public class JimmuAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<JimmuChecker> {
 
     protected final AnnotationUtils annotationFactory;
-    protected JimuvaChecker checker;
-    protected JimuvaVisitorState state;
+    protected JimmuChecker checker;
+    protected JimmuVisitorState state;
 
-    public JimuvaAnnotatedTypeFactory(JimuvaChecker checker, CompilationUnitTree root, JimuvaVisitorState state) {
+    public JimmuAnnotatedTypeFactory(JimmuChecker checker, CompilationUnitTree root, JimmuVisitorState state) {
         super(checker, root, true);
         annotationFactory = checker.getAnnotationFactory();
         this.checker = checker;
@@ -105,14 +105,14 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                     } else if (receiverType.hasAnnotation(checker.WORLD)) {
                         type.addAnnotation(checker.WORLD);
                     } else if (receiverType.hasAnnotation(checker.OWNEDBY)) {
-                        JimuvaVisitor.Owner retOwner = new JimuvaVisitor.Owner(mElem, this);
+                        JimmuVisitor.Owner retOwner = new JimmuVisitor.Owner(mElem, this);
                         type.addAnnotation(ownerAnnotation(retOwner.asString()));
                     }
                 } else if (returnType.hasAnnotation(checker.OWNEDBY) 
                         && !TreeUtils.isSelfAccess(inv)) {
                     MemberSelectTree mst = (MemberSelectTree) inv.getMethodSelect();
-                    JimuvaVisitor.Owner retOwner = new JimuvaVisitor.Owner(mElem, this);
-                    JimuvaVisitor.Owner selOwner = new JimuvaVisitor.Owner(mst.getExpression(), this);
+                    JimmuVisitor.Owner retOwner = new JimmuVisitor.Owner(mElem, this);
+                    JimmuVisitor.Owner selOwner = new JimmuVisitor.Owner(mst.getExpression(), this);
                     selOwner.append(retOwner);
                     type.removeAnnotation(checker.OWNEDBY);
                     type.addAnnotation(ownerAnnotation(selOwner.asString()));
@@ -163,13 +163,13 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                     type.removeAnnotation(checker.PEER);
                     type.addAnnotation(checker.WORLD);
                 } else if (expElemType.hasAnnotation(checker.OWNEDBY)) {
-                    JimuvaVisitor.Owner elOwner = new JimuvaVisitor.Owner(elem, this);
+                    JimmuVisitor.Owner elOwner = new JimmuVisitor.Owner(elem, this);
                     type.removeAnnotation(checker.PEER);
                     type.addAnnotation(ownerAnnotation(elOwner.asString()));
                 }
             } else if (elemType.hasAnnotation(checker.OWNEDBY)) {
-                JimuvaVisitor.Owner elOwner = new JimuvaVisitor.Owner(elem, this);
-                JimuvaVisitor.Owner expOwner = new JimuvaVisitor.Owner(mst.getExpression(), this);
+                JimmuVisitor.Owner elOwner = new JimmuVisitor.Owner(elem, this);
+                JimmuVisitor.Owner expOwner = new JimmuVisitor.Owner(mst.getExpression(), this);
                 expOwner.append(elOwner);
                 type.removeAnnotation(checker.OWNEDBY);
                 type.addAnnotation(ownerAnnotation(expOwner.asString()));
@@ -232,7 +232,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
         /* Add implicit @Immutable to objects @OwnedBy @Immutable objects. */
         if (type.hasAnnotation(checker.OWNEDBY)) {
             try {
-                JimuvaVisitor.Owner owner = new JimuvaVisitor.Owner(elt, this);
+                JimmuVisitor.Owner owner = new JimmuVisitor.Owner(elt, this);
                 if (owner.isImmutable()) {
                     type.removeAnnotation(checker.MUTABLE);
                     type.removeAnnotation(checker.MYACCESS);
@@ -245,7 +245,7 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
                         type.addAnnotation(checker.MYACCESS);
                     }
                 }
-            } catch (JimuvaVisitor.Owner.OwnerDescriptionError err) {
+            } catch (JimmuVisitor.Owner.OwnerDescriptionError err) {
                 /* Swallow the exception, it should have already been reported */
             }
         }
@@ -384,11 +384,11 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
 
     public static class JimuvaFlow extends Flow {
 
-        protected JimuvaChecker checker;
+        protected JimmuChecker checker;
         MethodTree currentMethod;
 
-        public JimuvaFlow(JimuvaChecker checker, CompilationUnitTree root,
-                Set<AnnotationMirror> flowQuals, JimuvaAnnotatedTypeFactory factory) {
+        public JimuvaFlow(JimmuChecker checker, CompilationUnitTree root,
+                Set<AnnotationMirror> flowQuals, JimmuAnnotatedTypeFactory factory) {
             super(checker, root, flowQuals, factory);
             this.checker = checker;
         }
@@ -426,12 +426,12 @@ public class JimuvaAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<Jimuva
     }
 
     @Override
-    protected Flow createFlow(JimuvaChecker checker, CompilationUnitTree root, Set<AnnotationMirror> flowQuals) {
+    protected Flow createFlow(JimmuChecker checker, CompilationUnitTree root, Set<AnnotationMirror> flowQuals) {
         return new JimuvaFlow(checker, root, flowQuals, this);
     }
 
     @Override
-    protected Set<AnnotationMirror> createFlowQualifiers(JimuvaChecker checker) {
+    protected Set<AnnotationMirror> createFlowQualifiers(JimmuChecker checker) {
         Set<AnnotationMirror> flowQuals = new HashSet<AnnotationMirror>();
         flowQuals.add(checker.THIS);
         flowQuals.add(checker.NOT_THIS);

@@ -42,10 +42,10 @@ import javax.tools.Diagnostic.Kind;
     /* Annotations for safe parameters */
     Safe.class
 })
-public class JimuvaChecker extends BaseTypeChecker {
+public class JimmuChecker extends BaseTypeChecker {
 
     protected AnnotationUtils annotationFactory;
-    protected JimuvaVisitorState state;
+    protected JimmuVisitorState state;
     protected Boolean lenientUpcasting;
 
     public AnnotationMirror BOTTOM, IMMUTABLE, MUTABLE, MYACCESS,
@@ -73,7 +73,7 @@ public class JimuvaChecker extends BaseTypeChecker {
         NOT_THIS   = annotationFactory.fromClass(NotThis.class);
         MAYBE_THIS = annotationFactory.fromClass(MaybeThis.class);
         SAFE       = annotationFactory.fromClass(Safe.class);
-        state = new JimuvaVisitorState();
+        state = new JimmuVisitorState();
 
         lenientUpcasting = false;
         Map<String, String> options = processingEnv.getOptions();
@@ -89,13 +89,13 @@ public class JimuvaChecker extends BaseTypeChecker {
 
     @Override
     public AnnotatedTypeFactory createFactory(CompilationUnitTree root) {
-        return new JimuvaAnnotatedTypeFactory(this, root, state);
+        return new JimmuAnnotatedTypeFactory(this, root, state);
     }
 
     @Override
     protected BaseTypeVisitor<?, ?> createSourceVisitor(CompilationUnitTree root) {
         try {
-            return new JimuvaVisitor(this, root, state);
+            return new JimmuVisitor(this, root, state);
         } catch (IOException e) {
             e.printStackTrace();
         }
@@ -106,7 +106,7 @@ public class JimuvaChecker extends BaseTypeChecker {
         return annotationFactory;
     }
 
-    public JimuvaVisitorState getState() {
+    public JimmuVisitorState getState() {
         return state;
     }
 
