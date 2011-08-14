@@ -6,11 +6,8 @@ import checkers.jimmu.quals.*;
 import checkers.quals.TypeQualifiers;
 import checkers.types.AnnotatedTypeFactory;
 import checkers.types.AnnotatedTypeMirror;
-import checkers.types.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import checkers.types.AnnotatedTypeMirror.AnnotatedNullType;
-import checkers.types.AnnotatedTypes;
 import checkers.types.QualifierHierarchy;
-import checkers.types.TypeHierarchy;
 import checkers.util.AnnotationUtils;
 import checkers.util.GraphQualifierHierarchy;
 import com.sun.source.tree.CompilationUnitTree;
@@ -25,6 +22,7 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.tools.Diagnostic.Kind;
 
 /**
+ * The main checker class for JimmuChecker.
  *
  * @author saf
  */
@@ -112,9 +110,6 @@ public class JimmuChecker extends BaseTypeChecker {
 
     /**
      * Issue a note to the error stream.
-     *
-     * @param messageKey
-     * @param args
      */
     public void note(Object source, String messageKey, Object... args) {
         String msg = messageKey;
@@ -137,9 +132,9 @@ public class JimmuChecker extends BaseTypeChecker {
         return lenientUpcasting;
     }
 
-    public static class JimuvaQualifierHierarchy extends GraphQualifierHierarchy {
+    public static class JimmuQualifierHierarchy extends GraphQualifierHierarchy {
 
-        public JimuvaQualifierHierarchy(GraphQualifierHierarchy h) {
+        public JimmuQualifierHierarchy(GraphQualifierHierarchy h) {
             super(h);
         }
 
@@ -148,10 +143,6 @@ public class JimmuChecker extends BaseTypeChecker {
          *
          * This is because different sets of annotations cover various
          * features of an element.
-         *
-         * @param rhs
-         * @param lhs
-         * @return
          */
         @Override
         public boolean isSubtype(Collection<AnnotationMirror> rhs, Collection<AnnotationMirror> lhs) {
@@ -174,9 +165,6 @@ public class JimmuChecker extends BaseTypeChecker {
 
     /**
      * An AnnotatedNullTypeMirror may be a subtype of anything.
-     * @param rhs the potential subtype
-     * @param lhs the supertype
-     * @return
      */
     @Override
     public boolean isSubtype(AnnotatedTypeMirror rhs, AnnotatedTypeMirror lhs) {
@@ -190,7 +178,7 @@ public class JimmuChecker extends BaseTypeChecker {
     @Override
     protected QualifierHierarchy createQualifierHierarchy() {
         QualifierHierarchy hierarchy = super.createQualifierHierarchy();
-        return new JimuvaQualifierHierarchy((GraphQualifierHierarchy) hierarchy);
+        return new JimmuQualifierHierarchy((GraphQualifierHierarchy) hierarchy);
     }
 
 

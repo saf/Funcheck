@@ -1,8 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package checkers.jimmu;
 
 import checkers.jimmu.JimmuVisitor.Owner;
@@ -23,9 +18,10 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Name;
 
 /**
+ * An object of the JimmuVisitorState class holds additional information during the 
+ * source code traversal by JimmuVisitor. 
  *
  * @author saf
  */
@@ -46,7 +42,7 @@ public class JimmuVisitorState {
     protected MethodTree currentMethodFlow;
     protected Stack<MethodTree> enclosingMethodsFlow;
 
-    /* Block -- represents the  */
+    /* Block -- represents the local variables declared inside a block */
     protected static class Block {
 
         private Map<String, AnnotatedTypeMirror> vars;
@@ -66,14 +62,6 @@ public class JimmuVisitorState {
 
     protected LinkedList<Block> blocks;
 
-    /* Set of possible aliases of this in the current method. */
-    /*
-     * #TODO
-     *   * update after assignment of non-this.
-     *   * split and conservatively merge on conditionals.
-     */
-    protected Map<Element, AssignmentTree> thisReferences;
-
     /* The type for the receiver of the current MethodInvocation.
      * Needed to infer type of paramaters in JimmuVisitor.
      */
@@ -86,7 +74,6 @@ public class JimmuVisitorState {
     protected Map<ExecutableElement, AnnotationMirror> implicitAnnotations;
 
     public JimmuVisitorState() {
-        thisReferences = new HashMap<Element, AssignmentTree>();
         implicitAnnotations = new HashMap<ExecutableElement, AnnotationMirror>();
         enclosingClassStack = new Stack<AnnotatedDeclaredType>();
         enclosingMethodStack = new Stack<AnnotatedExecutableType>();
@@ -130,8 +117,6 @@ public class JimmuVisitorState {
             enclosingMethodStack.push(currentMethod);
         }
         currentMethod = atypeFactory.getAnnotatedType(tree);
-//        System.err.println("ENTERING METHOD: " + currentMethod.getElement().getSimpleName().toString()
-//                + " ---> " + currentMethod.toString());
     }
 
     public void leaveMethod() {
@@ -160,18 +145,6 @@ public class JimmuVisitorState {
 
     public String getCurrentMethodName() {
         return currentMethod.getElement().getSimpleName().toString();
-    }
-
-    public boolean isThisAlias(Element el) {
-        return thisReferences.containsKey(el);
-    }
-
-    public void addThisAlias(Element el, AssignmentTree tr) {
-        thisReferences.put(el, tr);
-    }
-
-    public AssignmentTree getThisAssignment(Element el) {
-        return thisReferences.get(el);
     }
 
     public void addImplicitAnnotation(ExecutableElement el, AnnotationMirror an) {

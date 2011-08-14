@@ -7,7 +7,6 @@ import checkers.source.Result;
 import checkers.types.AnnotatedTypeMirror;
 import checkers.types.AnnotatedTypeMirror.AnnotatedDeclaredType;
 import checkers.types.AnnotatedTypeMirror.AnnotatedExecutableType;
-import checkers.types.AnnotatedTypes;
 import checkers.util.ElementUtils;
 import checkers.util.InternalUtils;
 import checkers.util.TreeUtils;
@@ -44,6 +43,7 @@ import javax.lang.model.type.TypeKind;
 import javax.lang.model.type.TypeMirror;
 
 /**
+ * The source code visitor for JimmuChecker.
  *
  * @author saf
  */
@@ -190,15 +190,12 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
 
     @Override
     protected void commonAssignmentCheck(AnnotatedTypeMirror varType, AnnotatedTypeMirror valueType, Tree valueTree, String errorKey, Void p) {
-        //System.err.println("Assigning " + valueTree.toString() + " (" + valueType.toString() +
-        //       ") to " + varType.toString());
-
         AnnotatedTypeMirror varCopy = annoTypes.deepCopy(varType);
 
         /* Generally, an object cannot lose or gain the @Immutable annotation. This is
-           enforced because @Immutable and @Mutable are uncomparable. However, the user may
-           want to allow for upcasting @Mutable values to @Immutable references using the "allow.upcast" 
-           option. */
+         * enforced because @Immutable and @Mutable are uncomparable. However, the user may
+         * want to allow for upcasting @Mutable values to @Immutable references using the
+         * "allow.upcast" option. */
         if (checker.allowUpcast() && varCopy.hasAnnotation(checker.IMMUTABLE)
                 && valueType.hasAnnotation(checker.MUTABLE)) {
             varCopy.removeAnnotation(checker.IMMUTABLE);
@@ -229,7 +226,7 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
     public Void visitMethod(MethodTree node, Void p) {
 
         /* Static methods and constructors cannot have @Myaccess parameters
-        or return a @Myaccess result */
+         * or return a @Myaccess result */
         AnnotatedExecutableType type = atypeFactory.getAnnotatedType(node);
         ExecutableElement elt = TreeUtils.elementFromDeclaration(node);
         if (elt.getModifiers().contains(Modifier.STATIC) || type.getReturnType() == null) {
@@ -247,8 +244,11 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
                 }
             }
         }
+        
         state.enterMethod(node);
+
         try {
+            /* Step into the method */
             return super.visitMethod(node, p);
         } finally {
             state.leaveMethod();
@@ -258,7 +258,6 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
     @Override
     public Void visitMethodInvocation(MethodInvocationTree node, Void p) {
         AnnotatedExecutableType calledMethod = atypeFactory.methodFromUse(node);
-//        System.err.println("INVOCATION: " + node.toString());
         AnnotatedTypeMirror receiver = atypeFactory.getReceiver(node);
         AnnotatedTypeMirror calledMethodReceiver = calledMethod.getReceiverType();
         ExpressionTree methodSelect = node.getMethodSelect();
@@ -313,11 +312,7 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
 
     /**
      * Refine the required arguments based on the ownership of the current method receiver,
-     * stored in the VisitorState
-     *
-     * @param requiredArgs
-     * @param passedArgs
-     * @param p
+     * stored in the JimmuVisitorState
      */
     @Override
     protected void checkArguments(List<? extends AnnotatedTypeMirror> requiredArgs, List<? extends ExpressionTree> passedArgs, Void p) {
@@ -471,7 +466,7 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
     @Override
     public Void visitNewClass(NewClassTree node, Void p) {
         if (state.isCurrentMethod(checker.ANONYMOUS)) {
-            /* Do not pass this to foreign constructors. */
+            /* Do not pass 'this' to foreign constructors. */
             checkArgumentsAnonymous(node.getArguments());
         }
         AnnotatedTypeMirror type = atypeFactory.fromTypeTree(node.getIdentifier());
@@ -565,7 +560,6 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
             while (dig) {
                 ExpressionTree e = t.getExpression();
                 AnnotatedTypeMirror et = atypeFactory.getAnnotatedType(e);
-//                System.err.println("ARRAY: " + e.toString() + " : " + et.toString());
                 if (et.hasAnnotation(checker.IMMUTABLE)) {
                     String errorKey = rep
                             ? "assignment.to.rep.array.of.immutable"
@@ -573,9 +567,6 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
                     checker.report(Result.failure(errorKey, node.getVariable().toString(), e.toString()), varTree);
                     dig = false;
                 } else if (!(e instanceof ArrayAccessTree)) {
-//                    System.err.println((et.hasAnnotation(checker.REP) ? "yes " : " no")
-//                            + (TreeUtils.isSelfAccess(e) ? " yes" : " no")
-//                            + (receiverImmutable ? " yes" : " no"));
                     if (et.hasAnnotation(checker.REP)
                             && TreeUtils.isSelfAccess(e)
                             && receiverImmutable) {
@@ -603,7 +594,6 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
 
     /**
      * Check an assignment within an @Anonymous method.
-     * @param node
      */
     protected void checkAssignmentAnonymous(AssignmentTree node) {
         ExpressionTree ex = node.getExpression();
@@ -627,7 +617,6 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
 
     /**
      * Check a function call inside an @Anonymous method.
-     * @param node
      */
     protected void checkCallAnonymous(MethodInvocationTree node) {
         /* Check that non-@Anonymous methods are not called on [this] */
@@ -735,8 +724,6 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
     protected boolean isBaseConstructorCall(MethodInvocationTree node) {
         AnnotatedExecutableType method = atypeFactory.methodFromUse(node);
         ExecutableElement methodElement = method.getElement();
-        //System.err.println("Base? " + methodElement.getEnclosingElement().getSimpleName().toString()
-        //        + " " + methodElement.getSimpleName());
         if (methodElement.getEnclosingElement().getSimpleName().contentEquals("Object")
                 && methodElement.getSimpleName().contentEquals("<init>")) {
             return true;
@@ -752,56 +739,6 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
         } finally {
             state.leaveBlock();
         }
-    }
-
-    public enum ThisReferenceSource {
-
-        THIS_LITERAL {
-
-            public void print(JimmuChecker ch) {
-            }
-        },
-        ALIAS {
-
-            public void print(JimmuChecker ch) {
-                ch.note(location, "this.ref.alias", aliasName);
-            }
-        },
-        NONANONYMOUS_ON_THIS {
-
-            public void print(JimmuChecker ch) {
-                ch.note(null, "this.ref.nonanonymous.on.this", methodName);
-            }
-        },
-        NONANONYMOUS_ON_ALIAS {
-
-            public void print(JimmuChecker ch) {
-                ch.note(null, "this.ref.nonanonymous.on.alias", methodName, aliasName);
-                innerReferenceSource.print(ch);
-            }
-        };
-        String aliasName;
-        String methodName;
-        ThisReferenceSource innerReferenceSource;
-        Tree location;
-
-        public void setLocation(Tree t) {
-            this.location = t;
-        }
-
-        public void setAliasName(String s) {
-            this.aliasName = s;
-        }
-
-        public void setMethodName(String s) {
-            this.methodName = s;
-        }
-
-        public void setInnerReferenceSource(ThisReferenceSource innerReferenceSource) {
-            this.innerReferenceSource = innerReferenceSource;
-        }
-
-        public abstract void print(JimmuChecker ch);
     }
 
     protected Boolean mayBeThis(ExpressionTree node) {
@@ -935,7 +872,7 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
                  *
                  * then return _ to mark ownership by an unknown object.
                  * Naturally, the returned OwnedBy annotation will not be a subclass
-                 * of any other OwnedBy annotation.
+                 * of any valid OwnedBy annotation.
                  */
                 path.add(new PathStep(null, PathStep.PathStepKind.UNKNOWN, false, null));
             }

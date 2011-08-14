@@ -11,19 +11,13 @@ import checkers.types.BasicAnnotatedTypeFactory;
 import checkers.util.AnnotationUtils;
 import checkers.util.ElementUtils;
 import checkers.util.TreeUtils;
-import com.sun.source.tree.BinaryTree;
-import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
-import com.sun.source.tree.ConditionalExpressionTree;
 import com.sun.source.tree.ExpressionTree;
 import com.sun.source.tree.IdentifierTree;
-import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodInvocationTree;
 import com.sun.source.tree.MethodTree;
-import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.Tree;
-import java.util.Collection;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -31,13 +25,11 @@ import javax.lang.model.element.AnnotationMirror;
 import javax.lang.model.element.Element;
 import javax.lang.model.element.ElementKind;
 import javax.lang.model.element.ExecutableElement;
-import javax.lang.model.element.Modifier;
 import javax.lang.model.element.TypeElement;
-import javax.lang.model.element.VariableElement;
 import javax.lang.model.type.TypeKind;
 
 /**
- * Determines annotations based on rules governing Funcheck's annotations.
+ * Determines annotations based on rules governing JimmuChecker's annotations.
  */
 public class JimmuAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<JimmuChecker> {
 
@@ -262,7 +254,6 @@ public class JimmuAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<JimmuCh
 
     @Override
     protected void annotateImplicit(Tree tree, AnnotatedTypeMirror type) {
-        //annotateExpressionWithImmutability(tree, type);
         super.annotateImplicit(tree, type);
         if (tree.getKind() == Tree.Kind.METHOD) {
             refineMethodType((AnnotatedExecutableType) type);
@@ -382,12 +373,12 @@ public class JimmuAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<JimmuCh
         }
     }
 
-    public static class JimuvaFlow extends Flow {
+    public static class JimmuFlow extends Flow {
 
         protected JimmuChecker checker;
         MethodTree currentMethod;
 
-        public JimuvaFlow(JimmuChecker checker, CompilationUnitTree root,
+        public JimmuFlow(JimmuChecker checker, CompilationUnitTree root,
                 Set<AnnotationMirror> flowQuals, JimmuAnnotatedTypeFactory factory) {
             super(checker, root, flowQuals, factory);
             this.checker = checker;
@@ -427,7 +418,7 @@ public class JimmuAnnotatedTypeFactory extends BasicAnnotatedTypeFactory<JimmuCh
 
     @Override
     protected Flow createFlow(JimmuChecker checker, CompilationUnitTree root, Set<AnnotationMirror> flowQuals) {
-        return new JimuvaFlow(checker, root, flowQuals, this);
+        return new JimmuFlow(checker, root, flowQuals, this);
     }
 
     @Override

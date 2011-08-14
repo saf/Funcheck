@@ -18,5 +18,5 @@ import java.lang.annotation.Target;
  */
 @Documented
 @Target({ElementType.METHOD})
-@SubtypeOf({ReadWrite.class})
+@SubtypeOf({})
 public @interface ReadOnly {}
