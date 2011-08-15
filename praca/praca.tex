@@ -171,7 +171,7 @@ The following section presents some general information related to the
 notions of object immutability and ownership. In Section
 \ref{sec:jimuva} we present Jimuva -- the type system for~
 ve\-ri\-fy\-ing immutability which this work is based upon. Then, in
-Section \ref{sec:modelling}, we introduce a~way of mapping the
+Section \ref{sec:modelling}, we introduce a~way of~mapping the
 concepts from Jimuva into the syntax of Java. Next, in Section
 \ref{sec:properties}, we define the~properties verified by
 JimmuChecker.
@@ -252,10 +252,10 @@ this paper.
 \subsubsection{Ownership}
 
 Another issue which has to be addressed is: what should we consider to
-be the state of a given object? A compound object may have subobjects
+be the state of a~given object? A compound object may have subobjects
 (objects which they hold a reference to) which contribute to its
 state. For example, the \texttt{char} array holding the characters of
-a \texttt{String} is definitely a part of the \texttt{String}'s
+a \texttt{String} is~definitely a part of the \texttt{String}'s
 state. We thus arrive at the concept of \emph{object ownership}, where
 an object may be \emph{owned} by another object. Of course, an object
 may also hold references to other objects which are not a part of its
@@ -272,7 +272,7 @@ There are two main types of object ownership:
 \begin{itemize}
 \item \textbf{Owner-as-dominator}, where the owned object is a part of
   the owner's internal representation. References to such internal
-  objects should not be leaked to the outside of the owner object. 
+  objects should not be leaked to the outside of~the~owner object. 
 \item \textbf{Owner-as-modifier}, which is weaker than the former
   property by allowing the owner to pass references to internal
   representation objects to the outside. However, modifying the
@@ -288,7 +288,7 @@ almost any other object within its scope.
 Several previous approaches to implement various flavors of object
 immutability and ownership are~described in
 Chapter~\ref{chap:related}. The following section presents one of the
-attempts: the Jimuva type system and language devised by Haack, Poll,
+attempts: the~Jimuva type system and language devised by Haack, Poll,
 Schäfer and Schubert, which this work, including the JimmuChecker
 tool, is based upon.
 
@@ -356,20 +356,23 @@ and variables listed below:
 
 Each expression in Jimuva may be of one of the following forms: 
 \begin{itemize}
-  \item a value $v$, which may be an object identifier, variable or
+  \item a value $v$, which may be an object identifier, a variable or
     \texttt{null}; 
   \item a field access $v.f$; 
   \item assignment to a field: $v.f = e$, where $e$ is an expression; 
-  \item a method call $v.m<w_1, w_2, \dots, w_n>(e_1, e_2, \dots,
-    e_k)$, where $e_i$ are expressions passed as parameters to the
-    method and $w_i$ are type parameters as described in the following
-    subsection on owner polymorphism;
-  \item a new object creation: \texttt{new} $C<ar, v>.k(e_1, \dots,
-    e_n)$, where $C<ar, v>$ is an object type specification as
+  \item a method call $v.m\texttt{<}w_1, w_2, \dots,
+    w_n\texttt{>(}e_1, e_2, \dots, e_k\texttt{)}$, where $e_i$ are
+    expressions passed as~parameters to the method and $w_i$ are type
+    parameters as described in the following subsection on owner
+    polymorphism;
+  \item a new object creation: \texttt{new} $C\texttt{<}ar,
+    v\texttt{>}.k\texttt{(}e_1, \dots, e_n\texttt{)}$, where
+    $C\texttt{<}ar, v\texttt{>}$ is an object type specification as
     described in the previous subsection, and $e_i$ are the
     constructor's arguments;
   \item a let-binding: \texttt{let} $x = e$ \texttt{in} $e'$; 
-  \item a constructor call: $C.k(e_1, e_2, \dots, e_n)$.
+  \item a constructor call: $C.k\texttt{(}e_1, e_2, \dots,
+    e_n\texttt{)}$.
 \end{itemize}
 
 \subsubsection{Methods and constructors}
@@ -378,23 +381,27 @@ Unlike in Java, the bodies of methods and constructors are expressions
 rather than statements. What is more, Jimuva's constructors are named.
 
 \begin{description}
-\item[Method definition] $<y_1, \dots, y_k> T\ m(\tau_1\ x_1, \tau_2\
-  x_2, \dots, \tau_n\ x_n) \lbrace e \rbrace$, where $y_i$ are type
-  arguments for owner-polymorphic methods, $T$ is the return type,
-  $\tau_i$ are object types for the parameters and $x_i$ are the
-  formal parameters. $e$ is the expression which constitutes the
-  method's body.
-\item[Constructor definition] $C.k(\tau_1\ x_1, \dots, \tau_n\ x_n)
-  \lbrace e \rbrace$, where $C$ is the class name, $k$ the constructor
-  name, $\tau_i\ x_i$ are formal parameters as in the method
-  declaration above, and $e$ is the body of the constructor. 
+\item[Method definition] $\texttt{<}y_1, \dots, y_k\texttt{>}\  T\
+  m\texttt{(}\tau_1\ x_1, \tau_2\ x_2, \dots, \tau_n\ x_n\texttt{)}
+  \lbrace e \rbrace$, where $y_i$ are type arguments for
+  owner-polymorphic methods, $T$ is the return type, $\tau_i$ are
+  object types for the parameters and $x_i$ are the formal
+  parameters. $e$ is the expression which constitutes the method's
+  body.
+\item[Constructor definition] $C.k\texttt{(}\tau_1\ x_1, \dots,
+  \tau_n\ x_n\texttt{)} \lbrace e \rbrace$, where $C$ is the class
+  name, $k$ the constructor name, $\tau_i\ x_i$ are formal parameters
+  as in the method declaration above, and $e$ is the body of the
+  constructor.
 \end{description}
 
 \subsubsection{Classes}
 
 A class consists of field, constructor and method declarations:
 \begin{center}
-\texttt{class}  $C$  \texttt{ext} $D\ \ \lbrace  F_1\ \dots\ F_f\ C_1\ \dots\ C_k\ M_1\ \dots\ M_n\rbrace$, \end{center}
+  \texttt{class} $C$ \texttt{ext} $D$ \texttt{\{} $F_1\ \dots\ F_f\
+  C_1\ \dots\ C_k\ M_1\ \dots\ M_n$\texttt{\}},
+\end{center}
 where $D$ is the name of $C$'s superclass, $F_i$ are field
 declarations which contains an object type and field name, $C_i$ are
 constructor definitions and $M_i$ are method definitions.
@@ -508,10 +515,10 @@ open-world immutability of \texttt{immutable} classes.
 The type system consists of several typing rules which are only
 applicable if the code at hand does not violate the immutability
 properties. Erroneous code does not type check within the rules: in
-this way, Jimuva may statically verify the immutability properties of
-the programs. It would require lengthy preparation to recall the rules
-in this work. The description of the complete type system may be found
-in~\cite{haack}.
+this way, Jimuva may statically verify the immutability properties
+of~the~programs. It would require lengthy preparation to recall the
+rules in this work. The description of the complete type system may be
+found in~\cite{haack}.
 
 \section{Modelling Jimuva in Java}
 \label{sec:modelling}
@@ -626,7 +633,7 @@ of annotations form two separate hierarchies, which are presented in
 Figure~\ref{fig:hierarchy} on page~\pageref{fig:hierarchy}.
 
 The immutability specifications of Jimuva are mapped into three type
-annotations as shown in Table \ref{tab:mapping-immut}.
+annotations as~shown in Table \ref{tab:mapping-immut}.
 
 \begin{table}[htb]
   \centering
@@ -674,7 +681,7 @@ to be checked by~JimmuChecker:
 \end{itemize}
 
 As permitted by the JSR~308 specification, the access rights
-annotations may be used on every occurrence of a type. We~might,
+annotations may be used on~every occurrence of a type. We~might,
 for~example, constrain the access rights for a method parameter or the
 returned value, as shown in the following listing:
 \begin{lstlisting}
@@ -709,7 +716,7 @@ Even though it might be somewhat counter-intuitive at first, the
 second assignment is perfectly valid. It is important to remember that
 the \texttt{@Immutable} annotation refers to the \emph{object} and not
 the \emph{reference}. The reference \texttt{x} changes, but the object
-remains unchanged. Of course, the reference could be made unmodifiable
+remains unchanged. Of course, the~reference could be made unmodifiable
 by using the \texttt{final} modifier. In that case, the second
 assignment would yield a compile-time error.
 
@@ -734,7 +741,7 @@ public class C {
 \subsubsection{Read-only methods}
 
 The user may constrain a method not to modify the object it is called
-on by preceding its declaration with the \texttt{@ReadOnly} annotation:
+on by preceding its~declaration with the \texttt{@ReadOnly} annotation:
 
 \begin{lstlisting}
 @ReadOnly public A getX() { 
@@ -800,7 +807,11 @@ identifiers in the ownership specification of an object.
 
 Table \ref{tab:mapping-owner} shows how the different possible
 ownership specifications are reflected into Java type annotations.
-\begin{table}
+If no ownership specification is given for an object, the type
+annotation defaults to \texttt{@World}. The user does not need to use
+the \texttt{@World} annotation in their code.
+
+\begin{table}[htb]
   \centering
   \begin{tabular}{|l|l|l|}
     \hline
@@ -815,9 +826,6 @@ ownership specifications are reflected into Java type annotations.
   \caption{Mapping Jimuva ownership specifications into Java annotated types}
   \label{tab:mapping-owner}
 \end{table}
-If no ownership specification is given for an object, the type
-annotation defaults to \texttt{@World}. The user does not need to use
-the \texttt{@World} annotation in their code.
 
 \subsubsection{Encapsulation of representation}
 \label{sec:mod:encap}
@@ -868,7 +876,7 @@ This grouping lays at the base of Dietl and Müller's Universes type
 system~\cite{universes}, where objects are considered to be in the
 same \emph{context} if they share owners. In their work, the~reference
 types equivalent to both \texttt{@Rep} and \texttt{@Peer} are
-supertyped by \emph{read-only} references in order to allow
+supertyped by \emph{read-only} references in~order to~allow
 non-modifying access to an object's context. In Jimuva, as well as in
 our checker, the~concepts of ownership and immutability are more
 orthogonal as they are represented by~two separate type
@@ -886,7 +894,7 @@ both variable ownership specifications \texttt{@Rep} and
 \texttt{@Peer}. As opposed to the previously considered
 \texttt{RepStack}, this implementation can be correctly type checked
 in our type system. Figure \ref{fig:peer-contexts} shows the structure
-of the collection. The \texttt{@Peer} annotation groups all cells and
+of~the~col\-lec\-tion. The \texttt{@Peer} annotation groups all cells and
 elements of the collection into the context of~the~object which holds
 the reference to the stack.
 
@@ -997,13 +1005,13 @@ IntList initList() {
 \end{lstlisting}
 \item \textbf{Public fields in the transitive reach of all of the
   above objects.} For each object listed above, the user may specify
-  as owners their public fields and the public fields of the objects
+  as owners their public fields and the public fields of~the~objects
   in those public fields etc. What is more, if a member of the
   transitive reach has an instance class, its static members and their
   transitive reach may also be~referenced. The string descriptions of
-  the reachable objects are constructed with the normal Java notation
+  the reachable objects are constructed with the~normal Java notation
   for member access. All of the annotations in
-  Listing~\ref{lst:owners} are valid.
+  Listing~\ref{lst:owners} are~valid.
   \begin{lstlisting}[label={lst:owners}, 
       caption={\texttt{@OwnedBy} specifications}]
 public class A {
@@ -1032,7 +1040,7 @@ public class A {
 
 The second limitation regarding this general case of ownership is
 connected to the semantics. Because ownership information is stored in
-a string rather than as a true reference to an owner object, we do not
+a string rather than as a true reference to~an~owner object, we do not
 have a way to verify that the reference described in the annotation's
 parameter does not change. Consider the following example:
 \begin{lstlisting}
@@ -1083,7 +1091,7 @@ their code using the~\texttt{@OwnedBy} annotation, the users forfeit
 the protection of the internal representation of~objects. Indeed, the
 property that no object may witness the internal state of another
 object is violated in that case. The more important property of
-encapsulation is enforced in JimmuChecker: the internal
+encapsulation is enforced in~JimmuChecker: the internal
 representation of an immutable object may not be
 modified. JimmuChecker disallows a situation where the access rights
 to an object \texttt{@OwnedBy(''x'')} are less restrictive than those
@@ -1130,10 +1138,10 @@ owner-polymorphic methods, we permit users to annotate formal method
 parameters with \texttt{@AnyOwner}, so that they may be instantiated
 with objects of any ownership. Any or all formal parameters may be
 annotated in this way. The \texttt{copy} method would then be declared
-as follows:
-\begin{lstlisting}
-void copy(@AnyOwner C from, @AnyOwner C to) {...}
-\end{lstlisting}
+as~follows:
+\begin{center}
+\texttt{void copy(@AnyOwner C from, @AnyOwner C to) \{\}}
+\end{center}
 
 There is an important issue left to consider related to encapsulation
 of representation. On the one hand, it would be too strict to entirely
@@ -1149,8 +1157,8 @@ case in JimmuChecker. Therefore, the \texttt{@Safe} annotation was
 introduced, which is designed for use with formal parameters of
 methods. The checker allows protected objects, i.e. those annotated
 with \texttt{@Rep} and \texttt{@Peer}, to be passed to methods as
-\texttt{@Safe} parameters, but it enforces their protection by
-prohibiting the method to create \emph{static aliases} to the
+\texttt{@Safe} parameters, but it enforces their protection
+by~prohibiting the method to create \emph{static aliases} to the
 parameters or any object transitively reachable from the
 parameters. This concept of \emph{safe parameters} is similar to that
 presented by Sălcianu and~Rinard in their work related to method
@@ -1182,14 +1190,14 @@ JimmuChecker.
 
 Haack et al. provide a complete small-step operational semantics of
 their simple language. Since this work aims at processing full Java,
-trying to base immutability properties on the language semantics in~a~
+trying to base immutability properties on~the~language semantics in~a~
 formal way is infeasible.
 
 Several approaches have been taken to define the formal semantics of
-Java, but all of them were limited in the breadth of language
+Java, but all of~them were limited in the breadth of language
 constructs they covered. A significant part of~the~related work
 focused on developing formal semantics of small fragments of the
-language, or \emph{calculi}, some of the examples being Featherweight
+language, or~\emph{calculi}, some of the examples being Featherweight
 Java~\cite{javasem:feather} or the imperative core calculus
 MJ~\cite{javasem:mj}. Perhaps the most complete approach is
 Jinja~\cite{javasem:jinja}, a language aiming to model a~significant
@@ -1197,7 +1205,7 @@ portion of Java. Other authors aimed to construct a formal
 denotational semantics using continuations~\cite{sem:cont} or more
 advanced category theory on top of an existing formalism called
 LOOP~\cite{sem:cat}. There even exists an executable implementation of
-the operational semantics of Java which allows for visualization of
+the operational semantics of~Java which allows for visualization of
 the system's execution~\cite{javasem:exec}.
 
 Even if a complete formal specification of Java semantics existed, it
@@ -1207,12 +1215,12 @@ apprehensive but less-than-formal notion of object state defined below.
 
 We have to distinguish between shallow and deep state of objects. The
 former does not take into consideration the subobjects of the given
-object, i.e. the objects which are parts of its internal
+object, i.e. the objects which are parts of~its~internal
 representation. Therefore, the shallow state of an object only
-includes the values of its instance fields. In the definitions below,
+includes the~values of its instance fields. In the definitions below,
 whenever we talk about an \emph{object}, we in fact mean its shallow
 state. When we mention an \emph{object's state}, we mean the deep
-state of the object.
+state of~the~object.
 
 Let us begin with an auxiliary definition related to the Java memory
 model:
@@ -1262,14 +1270,14 @@ $w$'s state expands. This addition should not be considered as
 modification of the object, because $w$ itself remains observationally
 unchanged. We have to introduce an equivalence relation between
 program states with regards to object state which would disregard such
-changes. This is reflected by the intersection operator on states in
-the definition below: only those objects which exist in both program
-states are taken into consideration when determining program state
-equivalence.
+changes. This is reflected by the intersection operator applied to two
+object states in the definition below: only those objects which exist
+in both program states are taken into consideration when determining
+program state equivalence.
 
 \begin{defi}[Program state equivalence]
-  For an object $w$, we say that two program states $q_1, q_2$ are
-  \emph{equivalent with regards to $w$}, denoted $q_1
+  For an object $w$, we say that two program states $q_1$ and~$q_2$
+  are \emph{equivalent with regards to $w$}, denoted $q_1
   \stackrel{w}{\equiv} q_2$, iff for each object $v$ in $S_1 \cap S_2$
   and each field $f$ of $v$,
   $$val_{q_1}^{v}(f) = val_{q_2}^{v}(f).$$
@@ -1360,7 +1368,7 @@ invariants above -- not subject to state change anymore.
 This chapter presents JimmuChecker, the checker tool created as
 part of this thesis. We~aimed to~implement the concepts of the
 language Jimuva, as presented in section \ref{sec:jimuva}, and~develop
-a checker tool which would satisfy the following requirements:
+a~checker tool which would satisfy the following requirements:
 \begin{itemize}
 \item \textbf{Applicability to full Java.} The syntax of Jimuva
   differs from that of full Java. It is reduced in some ways: there
@@ -1368,7 +1376,11 @@ a checker tool which would satisfy the following requirements:
   language. In other aspects, the syntax is modified -- for example,
   it utilizes let-binding of local variables rather than declarations
   -- or extended, as it is the case with the ownership and access
-  rights specifications and owner-polymorphism of methods.
+  rights specifications and owner-polymorphic methods.
+
+  The checker should reflect the language extensions introduced by
+  Jimuva into the syntax of Java. The method of modelling the concepts
+  of~Jimuva in Java has been presented in Section~\ref{sec:modelling}.
 \item \textbf{Efficient checking.} Checking the immutability
   properties of a system should come together with normal
   development. If there is no delay between compilation and
@@ -1384,7 +1396,15 @@ a checker tool which would satisfy the following requirements:
   the methods and~classes used therein.
 \end{itemize}
 
-\subsection{Proving immutability properties}
+JimmuChecker, the checker tool created as part of our work, was
+implemented using the~Checker Framework. Section \ref{sec:framework}
+proceeds to describe the main concepts of the
+framework. Section~\ref{sec:structure} presents an outline of the
+checker's structure and functioning.  Section \ref{sec:rules} contains
+detailed information on the type system and verification implemented
+in JimmuChecker.
+
+\subsubsection{Proving immutability properties}
 
 We do not aim to provide in this paper a complete, formal proof that
 every program which type checks properly using JimmuChecker is
@@ -1428,16 +1448,6 @@ about passing references to immutable objects and to their internal
 representation, which would be needed to derive the correctness
 of~our~type system.
 
-\subsubsection{Contents of this chapter}
-
-JimmuChecker, the checker tool created as part of our work, was
-implemented using the~Checker Framework. Section \ref{sec:framework}
-proceeds to describe the main concepts of the
-framework. Section~\ref{sec:structure} presents an outline of the
-checker's structure and functioning.  Section \ref{sec:rules} contains
-detailed information on the type system and verification implemented
-in JimmuChecker.
-
 \section{The Checker Framework}
 \label{sec:framework}
 
@@ -1472,6 +1482,9 @@ in JimmuChecker.
     A to B indicates that A is a subtype of B.}
   \label{fig:example-checker-hierarchy}
 \end{figure}
+
+This section briefly describes the~Checker Framework, which was used
+as~the~base of~our immutability checker JimmuChecker.
 
 The Checker Framework is a tool which can be used to create new
 annotation processors for~Java. The framework relies on the syntax
@@ -1722,11 +1735,11 @@ are as follows:
 \end{figure}
 
 This section presents the type inference and verification rules used
-by JimmuChecker. The checker works by applying the type inference
+by our checker. JimmuChecker works by~applying the type inference
 rules to objects from user code and then checking the code against the
-verification rules. Whenever a verification rule is violated, the
-checker signals an error. In the following discussion, annotated types
-are written in the form:
+verification rules. Whenever a verification rule is violated,
+the~checker signals an error. In the following discussion, annotated
+types are written in~the~following form:
 
 $$\underbrace{\mathtt{@A\quad @B}}_{\mathclap{\textrm{\small{type qualifiers}}}}\quad \overbrace{\mathtt{T}}^{\mathclap{\textrm{\small{Java type}}}}$$
 
@@ -1763,17 +1776,17 @@ There is a problem with the default subtyping mechanism in the Checker
 Framework which has to be addressed here. BaseTypeChecker provides a
 subtyping mechanism which would be~wrong for our
 applications. Specifically, if $T$ had more than one type annotation
-(e.g. \texttt{@A @B C}), it would be enough for $S$ to have an
-annotation which subtypes \emph{one} of the annotations on the type
+(e.g. \texttt{@A~@B~C}), it would be enough for $S$ to have an
+annotation which subtypes \emph{one} of~the~annotations on the type
 $T$ to be considered a subtype of $T$. This would lead to unwanted
 results as, for~example, \texttt{@Immutable @Peer String} would
-subtype \texttt{@Mutable @Safe String}, leading to an obvious
-violation in immutability when an \texttt{@Immutable} object gets
+subtype \texttt{@Mutable @Safe String}, leading to~an~obvious
+violation in~immutability when an \texttt{@Immutable} object gets
 assigned to~a~\texttt{@Mutable} reference.
 
 The class JimmuQualifierHierarchy is responsible for introducing
 another mechanism of~subtyping. For each annotation $a$ on $T$ there
-must be an annotation on $S$ which subtypes $a$. In other words, each
+must be an annotation on $S$ which subtypes $a$. In~other words, each
 annotation on the potential supertype is treated as a requirement
 which has to be satisfied by the candidate subtype. 
 
@@ -1822,22 +1835,23 @@ and \texttt{@Myaccess} to~\texttt{@Immutable}, without violating
 immutability.
 
 To address the above discussion, JimmuChecker includes a mechanism
-which allows the~user to~ease the restriction which Rule 0
-carries. Whenever the \texttt{allow.upcast=true} option is passed to
-the checker, upcasting on access rights specifications is permitted.
+which allows users to~ease the restriction which Rule 0
+carries. Whenever the \texttt{allow.upcast=true} option is~passed
+to~the~checker, upcasting on access rights specifications is
+permitted.
 
 Effectively, the presence of the switch means that the checker has two
 distinct modes of operation. The default behavior is compliant with
 Jimuva in that it does not permit upcasting. Therefore, immutability
 specifications on references (method parameters etc.) are to be
 treated as requirements for the objects which are assigned to them,
-i.e. only an immutable object may be assigned to a reference annotated
+i.e. only an~immutable object may be assigned to a reference annotated
 with \texttt{@Immutable}. The modified behavior with
 \texttt{allow.upcast} set to \texttt{true} is that \texttt{@Immutable}
 is tied with an immutability contract on the reference rather than the
-assigned object. An \texttt{@Immutable} annotation on a method
+assigned object. An \texttt{@Immutable} annotation on~a~method
 parameter, for example, means that the method may not modify the
-object passed as the parameter. 
+object passed as~the~parameter. 
 
 \subsubsection{Enforcing \texttt{@ReadOnly} on methods} 
 \label{sec:rules:readonly}
@@ -1944,7 +1958,7 @@ an immutable class is immediately resolved to \texttt{@Immutable}.
 
 Because \texttt{@Myaccess} can be resolved to \texttt{@Immutable}
 using the above rule, values annotated with \texttt{@Myaccess} must be
-protected from being modified inside read-only methods. The protection
+protected from being modified inside read-only methods. The~protection
 can be confined to read-only methods, because no other method may be
 called on~an~immutable object, and \texttt{@Myaccess} only resolves to
 \texttt{@Immutable} for immutable objects.
@@ -2096,13 +2110,13 @@ into consideration situations when the user might pass a reference to
 
 The types inferred using the above rules are subsequently propagated
 along with the~va\-lu\-es. Whenever a value appears in the user's
-code, JimmuChecker recalls the annotations on the previous
+code, JimmuChecker recalls the annotations on~the~previous
 appearances. When considering branching statements, such as the
 conditional branch \texttt{if} and the \texttt{while}-loop,
 JimmuChecker takes a conservative approach, possibly coming up with
 spurious errors, but ensuring that the immutability property
 holds. The propagation rules which handle branching operations utilize
-a relation $\cup$ which is defined as shown in Table~\ref{tbl:cup}.
+a relation $\cup$ which is defined as~shown in~Table~\ref{tbl:cup}.
 \begin{table}[h]
   \centering
   \begin{tabular}{c|c|c|c|}
@@ -2120,13 +2134,12 @@ change between instructions. The expression typing rules presented
 above introduce a mapping from code elements (variables, method
 parameters etc.) into the set $\lbrace$\texttt{@This},
 \texttt{@MaybeThis}, \texttt{@NotThis}$\rbrace$ of annotations. This
-mapping may be then modified by program statements, as per the
-propagation rules.
+mapping may be then modified by program statements, as per
+the~propagation rules.
 
 Several example propagation rules are shown below in Hoare
-logic~\cite{hoare}. In these rules, $\phi$ stands for an undisclosed
-initial mapping of variables to annotations which is valid before the
-given instruction.
+logic~\cite{hoare}. The simplest rules are the ones related to
+assignment.
 
 \begin{prooftree}
   \AxiomC{v : $\tau$} 
@@ -2139,6 +2152,10 @@ given instruction.
   \RightLabel{(alias)}
   \UnaryInfC{\htr{var : $\tau$}{x = var}{x : $\tau$}}
 \end{prooftree}
+
+In the following rules, $\phi$ stands for an undisclosed thesis
+regarding the mapping of variables to types which is valid in the
+pre-state of the analyzed statement. 
 
 When subsequently executing two statements, we propagate the theses
 ($\psi$) resulting from the post-state of the first statement to the
@@ -2206,7 +2223,7 @@ of the method:
 \item \texttt{next} : \texttt{@MaybeThis} by (this-member)
 \end{itemize}
 In the post-state of the first assignment, \texttt{this.value = n},
-the type of \texttt{value} is changed to \texttt{@NotThis} by the
+the type of \texttt{value} is changed to~\texttt{@NotThis} by the
 (alias) rule. Next, we analyze the conditional statement. The first
 branch assigns a value of type \texttt{@This} to the \texttt{next}
 field of the constructed object, while the other branch assigns a
@@ -2214,7 +2231,7 @@ field of the constructed object, while the other branch assigns a
 branches. The result is that the two types are combined using the
 $\cup$ operator into the \texttt{@MaybeThis} type, which becomes the
 type of the field in the post-state of the conditional statement.
-Therefore, the method invocation in the last statement of the method
+Therefore, the~method invocation in the last statement of the method
 is an error by Rule~\ref{vrl:anon}.
 
 \subsubsection{Rules for anonymity} 
@@ -2279,7 +2296,7 @@ all checked code:
 
 \begin{invariant}[Encapsulation of representation] \label{inv:encap}
   If $v$ is a part of~the state of an object $w$, then no mutable
-  static aliases are created to $v$ or any part of~$v$'s state outside
+  static aliases are created to $v$ or~any part of~$v$'s state outside
   $w$'s state as a consequence of actions of objects in $w$'s state.
 \end{invariant}
 
@@ -2406,16 +2423,15 @@ Objects of the class \texttt{JimmuVisitor.Owner} represent the
 owners. The class' constructors parse the arguments of
 \texttt{@OwnedBy} annotations and signal any errors found therein.
 
-The constructors first search the current scope for an element with
-a name equal to~the~base. To this end, the
-\texttt{JimmuVisitorState} stores a stack representing blocks with
-declared variables. This stack, along with the methods and classes
-enclosing the place of code being inspected, is scanned for a
-matching element. If such an element is found, the algorithm proceeds
-to scan the class whose instance the base is, as well as its
-superclasses, for a member matching the first element of the
-patch. The process continues with the class of this path element and
-the next element.
+The constructors first search the current scope for an element with a
+name equal to~the~base. To this end, the \texttt{JimmuVisitorState}
+stores a stack representing blocks with declared variables. This
+stack, along with the methods and classes enclosing the place of code
+being inspected, is~scanned for a matching element. If such an element
+is found, the algorithm proceeds to~scan the class whose instance the
+base is, as well as its superclasses, for a member matching the~first
+element of the patch. The process continues with the class of this
+path element and the next element.
 
 An important feature here is that \texttt{Owner} objects store the
 annotated types of the owner objects. This enables the checker to
@@ -2485,7 +2501,7 @@ annotation matches on both the actual argument \texttt{nh} and the
 formal parameter of~the~method. The owners of the two objects are
 different: \texttt{nh} is owned by the instance of~\texttt{Test} while
 the parameter \texttt{newN} of method \texttt{l.changeHead} is
-supposed to be owned by the list head \texttt{l}. The correct way to
+supposed to be owned by~the~list head \texttt{l}. The correct way to
 invoke the method would be:
 \begin{lstlisting}
 @OwnedBy(''l'') nh = new @OwnedBy(''l'') Integer(0);
@@ -2592,9 +2608,9 @@ is itself annotated with~\texttt{@Peer}.
 
 \texttt{@Safe} method parameters are a way of adapting Jimuva's
 concept of owner-polymorphic methods for our checker. Encapsulated
-values -- annotated with \texttt{@Peer} or \texttt{@Rep} -- may be
-passed as safe parameters to methods. Therefore, elements annotated by
-\texttt{@Safe} should be protected in a special way in order to
+values -- annotated with \texttt{@Peer} or \texttt{@Rep} -- may
+be~passed as~safe parameters to methods. Therefore, elements annotated
+by \texttt{@Safe} should be protected in a special way in order to
 satisfy the encapsulation property specified on
 page~\pageref{inv:encap}. Namely, no static aliases may be created to
 safe values.
