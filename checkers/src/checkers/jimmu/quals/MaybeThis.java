@@ -1,13 +1,9 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package checkers.jimmu.quals;
 
 import checkers.quals.SubtypeOf;
 
 /**
+ * Indicates that a reference may or may not point to 'this'.
  *
  * @author saf
  */

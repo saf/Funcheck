@@ -1,9 +1,6 @@
 package checkers.jimmu.quals;
 
-import checkers.quals.ImplicitFor;
 import checkers.quals.SubtypeOf;
-import com.sun.source.tree.Tree;
-import com.sun.source.tree.Tree.Kind;
 import java.lang.annotation.*;
 
 

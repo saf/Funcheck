@@ -1,13 +1,9 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package checkers.jimmu.examples;
 
 import checkers.jimmu.quals.Anonymous;
 
 /**
+ * Testing inferring [this] reference tracking annotations [@NotThis], [@MaybeThis], [@This].
  *
  * @author saf
  */

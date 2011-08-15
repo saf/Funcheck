@@ -1,8 +1,3 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package checkers.jimmu.quals;
 
 import checkers.quals.SubtypeOf;
@@ -12,6 +7,7 @@ import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 
 /**
+ * Indicates that a reference is owned by the object described by the String value. 
  *
  * @author saf
  */

@@ -1,16 +1,11 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package checkers.jimmu.quals;
 
 import checkers.quals.SubtypeOf;
 import java.lang.annotation.Documented;
 
 /**
- * Equivalent of Jimuva's C<world>. Does not need to be used in user code, exists for technical 
- * purposes. 
+ * Equivalent of Jimuva's C<world>. The default ownership annotation of object references. 
+ * Does not need to be used in user code.
  *
  * @author saf
  */

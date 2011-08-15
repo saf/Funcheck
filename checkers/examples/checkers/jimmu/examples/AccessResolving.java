@@ -1,13 +1,9 @@
-/*
- * To change this template, choose Tools | Templates
- * and open the template in the editor.
- */
-
 package checkers.jimmu.examples;
 
 import checkers.jimmu.quals.*;
 
 /**
+ * Example for resolving of the [@Myaccess] access rights variable.
  *
  * @author saf
  */
