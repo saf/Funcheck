@@ -302,7 +302,14 @@ public class JimmuVisitor extends BaseTypeVisitor<Void, Void> {
 
         if (receiver != null && receiver.hasAnnotation(checker.SAFE)
                 && calledMethodReceiver != null && !calledMethodReceiver.hasAnnotation(checker.SAFE)) {
-            checker.report(Result.failure("unsafe.call.on.safe.value", receiver), node);
+            String receiverString;
+            if (TreeUtils.isSelfAccess(node)) {
+                receiverString = "this";
+            } else {
+                MemberSelectTree mst = (MemberSelectTree) node.getMethodSelect();
+                receiverString = mst.getExpression().toString();
+            }
+            checker.report(Result.failure("unsafe.call.on.safe.value", receiverString), node);
         }
         checkArgumentsSafe(node.getArguments(), calledMethod.getParameterTypes());
 

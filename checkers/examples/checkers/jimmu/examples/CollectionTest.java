@@ -19,7 +19,7 @@ public class CollectionTest {
     }
 
     public static class Tester {
-        private @Rep checkers.jimmu.examples.PeerStack<String> stack;
+        private @Rep PeerStack<String> stack;
 
         public Tester() {
             stack = new /*@Rep*/ PeerStack<String>();
