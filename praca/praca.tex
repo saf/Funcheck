@@ -2203,11 +2203,10 @@ class IntList {
 Let us consider an example process of inferring the annotations. The
 code in Listing~\ref{lst:flow} is~to~be~checked, which is a part of an
 implementation of a singly-linked list of integers delimited by a node
-whose \texttt{next} pointer references the node itself.
-
-We assume that the method \texttt{initialize} called here is not
-annotated with \texttt{@Anonymous}. By the expression typing rules,
-the following mapping of variables to types are valid at~the~beginning
+whose \texttt{next} pointer references the node itself. We assume that
+the method \texttt{initialize} is not annotated with
+\texttt{@Anonymous}. By the expression typing rules, the following
+mapping of variables to types are valid at~the~beginning
 of~the~method:
 \begin{itemize}
 \item \texttt{n} : \texttt{@NotThis} by (param-ctor)
