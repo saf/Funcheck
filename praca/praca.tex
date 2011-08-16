@@ -2608,13 +2608,14 @@ page~\pageref{inv:encap}. Namely, no static aliases may be created to
 safe values.
 
 This condition is partially enforced by the subtyping rule itself: as
-shown in Figure~\ref{fig:hierarchy}, \texttt{@Safe} is the supertype
-of all ownership specifications. The subtyping mechanism implemented
-in JimmuChecker thus ensures that a safe value is never assigned to a
-non-safe value. However, checked code may also call unchecked
-methods. In that case, the subtyping rule would be~of~no~use, as there
-would be no ``requirements'' present on the method parameters, which
-would lead to safe values being passed freely to unchecked code.
+shown in Figure~\ref{fig:hierarchy} on page~\pageref{fig:hierarchy},
+\texttt{@Safe} is the supertype of all ownership specifications. The
+subtyping mechanism implemented in JimmuChecker thus ensures that a
+safe value is never assigned to a non-safe value. However, checked
+code may also call unchecked methods. In that case, the~subtyping rule
+would be~of~no~use, as there would be no ``requirements'' present on
+the method parameters, which would lead to safe values being passed
+freely to unchecked code.
 
 The following rules must be enforced to ensure that no static aliases
 are created to safe values:
