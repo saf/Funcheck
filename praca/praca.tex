@@ -101,9 +101,8 @@ The object immutability property can be informally expressed in the
 following way: an~object $P$ is \emph{immutable} if it is impossible
 for other objects to observe two distinct states of $P$. A stronger
 formulation of the property, which is pursued in this work, is that
-the state of $P$ cannot be changed changed at all throughout its
-lifespan, starting from when the object has finished its construction
-phase.
+the state of $P$ cannot be changed at all throughout its lifespan,
+starting from when the object has finished its construction phase.
 
 Why would we need objects that are provably immutable? The concept of
 object immutability turns out to have multiple applications in
@@ -513,11 +512,11 @@ is \texttt{C<rd, o>} and which are used by checked code, and
 open-world immutability of \texttt{immutable} classes. 
 
 The type system consists of several typing rules which are only
-applicable if the code at hand does not violate the immutability
+applicable if the code at~hand does not violate the immutability
 properties. Erroneous code does not type check within the rules: in
 this way, Jimuva may statically verify the immutability properties
 of~the~programs. It would require lengthy preparation to recall the
-rules in this work. The description of the complete type system may be
+rules in this work. The~description of the complete type system may be
 found in~\cite{haack}.
 
 \section{Modelling Jimuva in Java}
