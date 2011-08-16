@@ -81,7 +81,7 @@
   reasoning about the possible states of the whole system. 
 
   This work presents JimmuChecker, a pluggable checker for object
-  immutability of Java objects. The checker is based on the Checker
+  immutability in Java programs. The checker is based on the Checker
   Framework and relies on the language extensions introduced in
   JSR 308.
 \end{abstract}
@@ -131,9 +131,9 @@ introduces the concepts of \emph{immutable objects} and
 objects), as an annotation-based extension to Java syntax. The eventual
 goal of~the~checker is to prove two properties:
 \begin{enumerate}
-\item \textbf{object immutability:} no immutable object changes its
+\item \textbf{Object immutability:} no immutable object changes its
   state if it is used by code checked with JimmuChecker,
-\item \textbf{immutability in an open world:} no instance of an
+\item \textbf{Immutability in an open world:} no instance of an
   immutable class may change its state, even when it is used by code
   which is not checked by JimmuChecker. The concept of open-world
   analysis of Java classes has been further described
@@ -856,7 +856,7 @@ Listing \ref{lst:stack-rep} indicates the main problems with this
 approach by showing an implementation of a simple stack. If the
 stack's elements are to be protected inside the \texttt{Cell} class by
 the \texttt{@Rep} annotation, the representation protection mechanism
-will allow the method \texttt{Cell::getData} neither to return
+should allow the method \texttt{Cell::getData} neither to return
 \texttt{data} directly nor to pass it to the copying constructor, as
 both actions may potentially expose internal representation of the
 cell to a foreign object. What is more, the implementation would
@@ -1149,7 +1149,7 @@ prohibit passing mutable \texttt{@Rep} objects as arguments to foreign
 methods. On the other hand, the internal representation should not~
 cease to be protected from access by outside objects. Figuratively
 speaking, the caller entrusts the polymorphic method with a part of
-its representation, but it should be assured that the callee will not
+its representation, but it should be assured that the callee does not
 leak the object further.
 
 Our type system has to make it possible to ensure that this is the
@@ -1518,10 +1518,10 @@ the enhanced type hierarchy.
 A checker based on the Checker Framework usually consists of two main
 modules:
 \begin{itemize}
-\item the \textbf{annotated type factory}, which provides syntactical
+\item The \textbf{annotated type factory}, which provides syntactical
   constructs of the Java language with type annotations according to a
   given set of rules,
-\item the \textbf{visitor} which traverses the nodes of the abstract
+\item The \textbf{visitor}, which traverses the nodes of the abstract
   syntax tree (AST) of the given compilation unit and verifies
   properties based on their annotated types inferred by~the~annotated
   type factory. This module acts upon the AST by making use of the
@@ -1845,13 +1845,13 @@ distinct modes of operation. The default behavior is compliant with
 Jimuva in that it does not permit upcasting. Therefore, immutability
 specifications on references (method parameters etc.) are to be
 treated as requirements for the objects which are assigned to them,
-i.e. only an~immutable object may be assigned to a reference annotated
+i.e. only an~immutable object may be assigned to a variable annotated
 with \texttt{@Immutable}. The modified behavior with
 \texttt{allow.upcast} set to \texttt{true} is that \texttt{@Immutable}
-is tied with an immutability contract on the reference rather than the
+is tied with an immutability contract on~the~reference rather than the
 assigned object. An \texttt{@Immutable} annotation on~a~method
 parameter, for example, means that the method may not modify the
-object passed as~the~parameter. 
+object passed as~the~parameter.
 
 \subsubsection{Enforcing \texttt{@ReadOnly} on methods} 
 \label{sec:rules:readonly}
@@ -2024,8 +2024,8 @@ identifiers into the relevant annotation for each place in code.
 Below, we present a simplified set of typing rules for expressions
 which are applied during the flow analysis. As usual in type systems,
 $x : \tau$ denotes that the value $x$ is of type $\tau$. Moreover, $x
-: \lbrace\tau_1, \tau_2\rbrace$ will be used as an abbreviation for
-the alternative $x : \tau_1 \lor x : \tau_2$.
+: \lbrace\tau_1, \tau_2\rbrace$ is be used as an abbreviation for the
+alternative $x : \tau_1 \lor x : \tau_2$.
 
 Note that the rules below are only valid if we assume that the
 verification rule for anonymity, which is presented as
@@ -2190,13 +2190,15 @@ the $\cup$ operator:
   \AxiomC{\htr{$\phi$}{$P_2$}{x : $\tau_2$}}
   \AxiomC{\htr{$\phi$}{$P_3$}{x : $\tau_3$}}
   \RightLabel{(try-catch-finally)}
-  \TrinaryInfC{\htr{$\phi$}{try $C$ catch(e) $P_1$ finally $P_2$}{x : $\tau_1 \cup \tau_2 \cup \tau_3$}}
+  \TrinaryInfC{\htr{$\phi$}{\texttt{try} $P_1$
+      \texttt{catch(}e\texttt{)} $P_2$ \texttt{finally} $P_3$}{x :
+      $\tau_1 \cup \tau_2 \cup \tau_3$}}
 \end{prooftree}
 
 Let us consider an example process of inferring the annotations. The
-following code will be checked, which is a part of an implementation
+following code is to~be~checked, which is a part of an implementation
 of a singly-linked list of integers delimited by a node whose
-\texttt{next} pointer references the node itself. 
+\texttt{next} pointer references the node itself.
 \begin{lstlisting}
 class IntList {
   Integer value;
@@ -2618,9 +2620,9 @@ safe values.
 This condition is partially enforced by the subtyping rule itself: as
 shown in Figure~\ref{fig:hierarchy}, \texttt{@Safe} is the supertype
 of all ownership specifications. The subtyping mechanism implemented
-in JimmuChecker thus ensures that a safe value will never be assigned
-to a non-safe value. However, checked code may also call unchecked
-methods. In that case, the subtyping rule would be of no use, as there
+in JimmuChecker thus ensures that a safe value is never assigned to a
+non-safe value. However, checked code may also call unchecked
+methods. In that case, the subtyping rule would be~of~no~use, as there
 would be no ``requirements'' present on the method parameters, which
 would lead to safe values being passed freely to unchecked code.
 
@@ -2630,7 +2632,7 @@ are created to safe values:
 \begin{verrule}[Direct safety]
   A safe value may never be assigned to fields. 
 \end{verrule}
-\vspace{-1cm}
+\vspace{-0.8cm}
 \begin{verrule}[Indirect safety]
   \begin{enumerate}[label=(\arabic*)]
   \item A safe value may never be passed as a non-safe parameter to a
@@ -2960,6 +2962,76 @@ implementation maps the relevant generic type arguments into
 annotations. The implementations of both IGJ and OIGJ are based on the
 Checker Framework and, like the Javari checker, they are shipped along
 with the framework.
+
+\section{Haack and Poll's immutability with flexible initialization}
+
+Haack and Poll proposed a simple type system for statically enforcing
+object and reference immutability in open and closed
+worlds~\cite{flexible}. Like in IGJ, they introduce three type
+qualifiers: \texttt{Rd}, \texttt{RdWr} and \texttt{Any}, which are
+equivalent to IGJ's \texttt{immutable}, \texttt{mutable} and
+\texttt{readonly}, respectively. The \texttt{myaccess} qualifier
+variable is also present, which acts in a way similar to the one in
+Jimuva. \texttt{Myaccess} is treated as an implicit class parameter
+and plays a role in enforcing the deep-state immutability of complex
+objects.
+
+The main contribution of Haack and Poll's work is that their type
+system allows for \emph{flexible initialization}: an object may be
+initialized outside a constructor.  This concept is implemented by
+using \emph{stack-local regions}, which are parts of the heap private
+to a method or constructor, not reachable from the outside of the
+method. Each such region has a unique token \texttt{n} and a~connected
+type qualifier which is denoted \texttt{Fresh(n)}. The region may be
+\emph{committed}, which effectively means that all objects in the
+region undergo a typestate transition to one of~the~main qualifiers
+listed above. Among other enhancements to~the~expressiveness
+of~the~language brought by flexible initialization, the type system
+allows for creating immutable arrays, which are missing from both IGJ
+and JimmuChecker:
+
+\begin{lstlisting}[morekeywords={commit,newtoken,char}]
+static char Rd [] copy (char Any [] a) {
+  newtoken n;
+  char[] r = new char Fresh(n) [a.length];
+  for (int i=0; i++; i < a.length) { 
+    r[i] = a[i];
+  }
+  commit Fresh(n) as Rd;
+  return r;
+}
+\end{lstlisting}
+
+The example code above presents a method which creates an immutable
+copy of~the~given array \texttt{a}. First, a stack-local region is
+declared with the \texttt{newtoken} keyword. The array is~then created
+as part of the region by annotating it (using JSR 308 syntax) with the
+type qualifier \texttt{Fresh(n)}. Subsequently, the array is
+initialized and afterwards its state is~frozen by~the~\texttt{commit}
+statement, which changes the type of the array to read-only. Note that
+the~\texttt{newtoken} and~\texttt{commit} statements do not have any
+run-time effect; they are only needed for the static analysis. What is
+more, the statements can be inferred by Haack and Poll's checker, so
+that programmers do not need to use them in their code at all.
+
+Even though their language lacks ownership specifications, Haack and
+Poll's language provides some object confinement properties through
+the use of methods which are polymorphic over type qualifiers. The
+type system ensures that the method:
+\begin{center}
+  \texttt{<q> void foo(char q [] arg)}
+\end{center}
+does not write the parameter \texttt{arg} to a heap location, and thus
+allow other objects to access \texttt{arg}. This is because there is
+no qualifier which would supertype all possible values of the
+qualifier variable \texttt{q}, and such a qualifier would be required
+as~the~type of~the~target heap location. This is somewhat similar to
+the concept of safe parameters introduced in JimmuChecker.
+
+In conclusion, Haack and Poll's type system provides an approach which
+is not as complex as Jimuva in the area of object ownership, but is
+still sound and expressive for object and reference immutability
+properties.
 
 \appendix
 
